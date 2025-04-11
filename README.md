@@ -50,7 +50,7 @@ To customize or add descriptions:
   ]
 }
 ```
-![image](https://github.com/user-attachments/assets/4d73d478-780d-4f41-9fd8-80ecd206223f)![image](https://github.com/user-attachments/assets/e6b37c5d-4a74-4067-a6f0-b294d88d61f8)
+![image](https://github.com/user-attachments/assets/4d73d478-780d-4f41-9fd8-80ecd206223f)
 ![image](https://github.com/user-attachments/assets/f4c11e9f-de29-4a52-bbd7-6fec00376619)![image](https://github.com/user-attachments/assets/ee8c8026-7bed-484a-b1dd-24a57d51e90d)
 
 
