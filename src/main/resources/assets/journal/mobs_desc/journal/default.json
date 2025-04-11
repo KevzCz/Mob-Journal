@@ -1,0 +1,11 @@
+{
+  "description": [
+    "## {mobName}",
+    "**Health:** {getHealth}",
+    "**Armor:** {getArmor}",
+    "**Kills:** {getTimesKilled}",
+    "**Deaths:** {getTimesDiedTo}",
+    "## Drops",
+    "{getLootDrops}"
+  ]
+}
