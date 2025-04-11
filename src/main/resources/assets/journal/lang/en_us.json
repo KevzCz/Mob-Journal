@@ -1,3 +1,5 @@
 {
-  "toast.journal.mob_discovered": "Discovered mob: "
+  "toast.journal.mob_discovered": "Discovered mob: ",
+  "key.journal.open": "Open Journal",
+  "category.journal": "Mob Journal"
 }
