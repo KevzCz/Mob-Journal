@@ -9,7 +9,8 @@
 	],
 	"contact": {
 		"homepage": "https://fabricmc.net/",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
+		"sources": "https://github.com/KevzCz/Mob-Journal",
+		"issues": "https://github.com/KevzCz/Mob-Journal/issues"
 	},
 	"license": "MIT",
 	"icon": "assets/journal/icon.png",
