@@ -11,18 +11,13 @@ To customize or add descriptions:
 1. Go to your Minecraft instance's resource pack or data pack folder.
 2. Navigate (or create) the path:
 
-   ```
-   assets/journal/mobs_desc/<namespace>/<mob_id>.json
-   ```
+   assets/journal/mobs_desc/<mod_namespace>/<mob_name>.json
 
    Example:
-   ```
    assets/journal/mobs_desc/minecraft/zombie.json
-   ```
 
 3. Inside the `.json` file, use the following format:
 
-```json
 {
   "description": [
     "## The Zombie",
@@ -38,7 +33,6 @@ To customize or add descriptions:
     "{getLootDrops}"
   ]
 }
-```
 
 ---
 
@@ -48,14 +42,13 @@ You can use the following variables in your text:
 
 | Variable | Description |
 |---------|-------------|
-| `{mobName}` | The mob's display name |
-| `{getHealth}` | Max health of the mob |
-| `{getArmor}` | Armor value |
-| `{getLootDrops}` | Automatically filled with known drops |
-| `{getTimesKilled}` | Times you've killed this mob |
-| `{getTimesDiedTo}` | Times this mob killed you |
-| `{namespace}` | Mob's namespace (e.g., `minecraft`) |
-| `{path}` | Mob's path (e.g., `zombie`) |
+| {mobName} | The mob's display name |
+| {getHealth} | Max health of the mob |
+| {getArmor} | Armor value |
+| {getLootDrops} | Automatically filled with known drops |
+| {getTimesKilled} | Times you've killed this mob |
+| {getTimesDiedTo} | Times this mob killed you |
+| {namespace} | Mob's namespace (e.g., minecraft) |
 
 ---
 
@@ -63,10 +56,10 @@ You can use the following variables in your text:
 
 | Feature | Syntax | Example |
 |--------|--------|---------|
-| Bold | `**text**` | **bold** |
-| Italic | `*text*` | *italic* |
-| Headers | `## Title` | ## Title |
-| Tooltip | `[word](hover:Tooltip here)` | [hover me](hover:Hi!) |
+| Bold | **text** | **bold** |
+| Italic | *text* | *italic* |
+| Headers | ## Title | ## Title |
+| Tooltip | [word](hover:Tooltip here) | [hover me](hover:Hi!) |
 
 ---
 
@@ -74,17 +67,47 @@ You can use the following variables in your text:
 
 You can embed items and textures using this inline syntax:
 
-```
-[Label](item:namespace:item_id scale=1.0 "Optional tooltip")
+[Label](item:namespace:item_id scale=1.0 "Optional tooltip")  
 [Label](texture:namespace:path/to/image.png scale=1.0 "Optional tooltip")
-```
 
 Examples:
 
-```text
-[Diamond](item:minecraft:diamond scale=1.0 "A precious gem")
+[Diamond](item:minecraft:diamond scale=1.0 "A precious gem")  
 [Custom Texture](texture:yourmodid:textures/gui/icon.png scale=1.0 "Icon!")
-```
+
+✅ These support tooltips when hovered over in-game.
+
+---
+
+## 🎨 Color Codes
+
+Mob Journal supports **Minecraft-style color codes** in descriptions using § formatting:
+
+| Code | Color       |
+|------|-------------|
+| §0   | Black       |
+| §1   | Dark Blue   |
+| §2   | Dark Green  |
+| §3   | Dark Aqua   |
+| §4   | Dark Red    |
+| §5   | Dark Purple |
+| §6   | Gold        |
+| §7   | Gray        |
+| §8   | Dark Gray   |
+| §9   | Blue        |
+| §a   | Green       |
+| §b   | Aqua        |
+| §c   | Red         |
+| §d   | Light Purple|
+| §e   | Yellow      |
+| §f   | White       |
+
+You can also use inline codes like `{§a}` and it will be replaced with §a automatically.
+
+Example:
+"{§c}Warning:{§r} This mob is dangerous!"
+
+✅ Note: Hex colors (#ffaa00) are not supported.
 
 ---
 
@@ -92,22 +115,21 @@ Examples:
 
 Mob Journal will fall back to:
 
-1. `assets/journal/mobs_desc/<namespace>/default.json`
-2. `assets/journal/mobs_desc/journal/default.json`
-3. Hardcoded basic stats if nothing is found.
+1. `assets/journal/mobs_desc/<mod_namespace>/default.json`  
+   - Shared fallback for that mod
+2. `assets/journal/mobs_desc/journal/default.json`  
+   - Shared fallback for everything
+3. A hardcoded basic description and stat block
 
 ---
 
 ## 🧪 Testing Tips
 
-- Press `F3 + T` to reload your resource pack and see changes immediately.
-- Descriptions are read from the client resources (meaning you can bundle them with resource packs).
-- All Markdown and placeholders work in any fallback/default.json too!
+- Press F3 + T to reload your resource pack and instantly refresh descriptions.
+- Descriptions are stored client-side and can be bundled with a resource pack.
 
 ---
 
-📦 Great for modpacks.  
-📖 Easy for storytellers.  
-💾 Lightweight and customizable.
-
-Happy journaling!
+📦 Great for modpacks  
+📖 Easy for storytellers  
+💾 Lightweight and customizable
