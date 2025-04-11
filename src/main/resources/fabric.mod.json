@@ -5,10 +5,11 @@
 	"name": "Mob Journal",
 	"description": "A Journal for all the mobs you've seen / discovered!",
 	"authors": [
-		"KevzCz"
+		"KevzCz",
+		"PixelDreamStudios"
 	],
 	"contact": {
-		"homepage": "https://fabricmc.net/",
+		"homepage": "https://www.curseforge.com/minecraft/mc-mods/mob-journal",
 		"sources": "https://github.com/KevzCz/Mob-Journal",
 		"issues": "https://github.com/KevzCz/Mob-Journal/issues"
 	},
