@@ -16,23 +16,43 @@ To customize or add descriptions:
    Example:
    assets/journal/mobs_desc/minecraft/zombie.json
 
-3. Inside the `.json` file, use the following format:
+3. Inside the `.json` file, use the following example format:
 
+```json
 {
   "description": [
-    "## The Zombie",
-    "A **hostile** mob that *burns in sunlight*.",
+    "## {mobName}",
+    "*The undead menace that groans in the night...*",
     "",
-    "Health: {getHealth}",
-    "Armor: {getArmor}",
+    "{§c}Health:{§r} {getHealth}",
+    "{§7}Armor:{§r} {getArmor}",
     "",
-    "You have killed this mob {getTimesKilled} times.",
-    "It has killed you {getTimesDiedTo} times.",
+    "[Hello!](hover:This is a tooltip shown when hovered!)",
+    "",
+    "**Combat Stats**",
+    "- You have slain this mob {getTimesKilled} times.",
+    "- It has slain you {getTimesDiedTo} times.",
     "",
     "**Drops:**",
-    "{getLootDrops}"
+    "{getLootDrops}",
+    "",
+    "**Treasure Example:**",
+    "[Diamond](item:minecraft:diamond scale=1.0 \"A precious gem\")",
+    "[Rotten Flesh](item:minecraft:rotten_flesh scale=1.0 \"Smells bad\")",
+    "[item](item:minecraft:diamond_sword scale=2)",
+    "Some text1 [Sword](texture:journal:icon.png) [Shield](texture:journal:icon.png)\n",
+    "Some text2 [Rotten Flesh](item:minecraft:rotten_flesh) [Rotten Flesh](item:minecraft:rotten_flesh)\n",
+    "",
+    "**Texture Example:**",
+    "[Logo](texture:journal:icon.png scale=1.0 \"Custom icon from your mod\")",
+    "",
+    "{§6}Tip:{§r} You can customize this description using markdown!"
   ]
 }
+```
+
+
+
 
 ---
 
