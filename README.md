@@ -51,7 +51,8 @@ To customize or add descriptions:
 }
 ```
 ![image](https://github.com/user-attachments/assets/4d73d478-780d-4f41-9fd8-80ecd206223f)
-![image](https://github.com/user-attachments/assets/f4c11e9f-de29-4a52-bbd7-6fec00376619)![image](https://github.com/user-attachments/assets/ee8c8026-7bed-484a-b1dd-24a57d51e90d)
+![image](https://github.com/user-attachments/assets/d3cf14a2-e3b1-411d-8b00-50e876366467)
+![image](https://github.com/user-attachments/assets/ee8c8026-7bed-484a-b1dd-24a57d51e90d)
 
 
 
