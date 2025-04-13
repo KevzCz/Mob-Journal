@@ -9,9 +9,11 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.EntityType;
+import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import net.pixeldreamstudios.journal.Journal;
 import net.pixeldreamstudios.journal.client.gui.JournalScreen;
 import net.pixeldreamstudios.journal.client.gui.MobDetailsScreen;
 import net.pixeldreamstudios.journal.client.toast.MobDiscoveredToast;
@@ -36,10 +38,16 @@ public class JournalClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openJournalKey.wasPressed()) {
                 if (client.player != null && client.world != null) {
-                    JournalClientData.shouldOpenJournalScreen = true;
-                    ClientPlayNetworking.send(OpenJournalPayload.INSTANCE);
+                    boolean hasJournal = client.player.getInventory().contains(new ItemStack(Journal.JOURNAL_ITEM));
+                    if (hasJournal) {
+                        JournalClientData.shouldOpenJournalScreen = true;
+                        ClientPlayNetworking.send(OpenJournalPayload.INSTANCE);
+                    } else {
+                        client.player.sendMessage(Text.literal("§cYou need to carry your Journal to open it!"), true);
+                    }
                 }
             }
+
         });
         PayloadTypeRegistry.playS2C().register(SyncMobDropsPayload.ID, SyncMobDropsPayload.CODEC);
         ClientPlayNetworking.registerGlobalReceiver(SyncMobDropsPayload.ID, (payload, context) -> {
@@ -57,7 +65,13 @@ public class JournalClient implements ClientModInitializer {
                 JournalClientData.DISCOVERED.clear();
                 JournalClientData.DISCOVERED.addAll(payload.mobIds());
                 MobUnlockTracker.resetSentMobs();
+
                 if (JournalClientData.shouldOpenJournalScreen) {
+                    MinecraftClient.getInstance().player.playSound(
+                            net.minecraft.sound.SoundEvents.ITEM_BOOK_PAGE_TURN,
+                            1.0f, // volume
+                            1.0f + (float)(Math.random() * 0.2 - 0.1) // slight pitch variation
+                    );
                     MinecraftClient.getInstance().setScreen(new JournalScreen());
                     JournalClientData.shouldOpenJournalScreen = false;
                 }

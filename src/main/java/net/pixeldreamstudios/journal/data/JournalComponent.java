@@ -35,6 +35,15 @@ public class JournalComponent implements ComponentV3, AutoSyncedComponent, Respa
         }
         return added;
     }
+    private boolean hasReceivedJournal = false;
+
+    public boolean hasReceivedJournal() {
+        return hasReceivedJournal;
+    }
+
+    public void setReceivedJournal(boolean received) {
+        this.hasReceivedJournal = received;
+    }
 
     public Set<Identifier> getDiscovered() {
         return discovered;
@@ -51,6 +60,7 @@ public class JournalComponent implements ComponentV3, AutoSyncedComponent, Respa
                 }
             }
         }
+        this.hasReceivedJournal = tag.getBoolean("journal:given");
     }
 
     @Override
@@ -61,6 +71,7 @@ public class JournalComponent implements ComponentV3, AutoSyncedComponent, Respa
             joined.append(id.toString());
         }
         tag.putString("mobs", joined.toString());
+        tag.putBoolean("journal:given", this.hasReceivedJournal);
     }
 
     @Override

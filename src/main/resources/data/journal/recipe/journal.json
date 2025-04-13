@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "item": "minecraft:writable_book"
+    }
+  ],
+  "result": {
+    "id": "journal:journal",
+    "count": 1
+  }
+}
