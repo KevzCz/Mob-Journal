@@ -43,7 +43,7 @@ public class MobDetailsScreen extends Screen {
     private List<List<List<ParsedLine>>> paginatedLines = new ArrayList<>();
     private final String returnQuery;
     private final int mobSlotW = 120, mobSlotH = 140;
-    private final int descSlotW = 110, descSlotH = 125;
+    private final int descSlotW = 110, descSlotH = 120;
 
     public MobDetailsScreen(Identifier mobId, int returnPage, String returnQuery) {
         super(Text.literal("Mob Info"));
@@ -164,18 +164,18 @@ public class MobDetailsScreen extends Screen {
         int y = (this.height - pageHeight) / 2;
         int buttonY = y + pageHeight - 20;
 
-        backButton = new PageTurnButton(x + 106, buttonY, false, () -> {
+        backButton = new PageTurnButton(x + 101, buttonY, false, () -> {
             MinecraftClient.getInstance().setScreen(new JournalScreen(returnPage, returnQuery));
         });
 
 
 
-        backDescButton = new DetailPageTurnButton(x + 395, buttonY, false, () -> {
+        backDescButton = new DetailPageTurnButton(x + 385, buttonY, false, () -> {
             descPage--;
             updatePageButtons();
         });
 
-        nextButton = new DetailPageTurnButton(x + pageWidth * 2 - 130, buttonY, true, () -> {
+        nextButton = new DetailPageTurnButton(x + pageWidth * 2 - 135, buttonY, true, () -> {
             descPage++;
             updatePageButtons();
         });

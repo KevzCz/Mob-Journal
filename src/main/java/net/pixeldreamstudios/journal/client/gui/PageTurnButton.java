@@ -8,17 +8,23 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 public class PageTurnButton {
-    private static final Identifier ARROW_TEXTURE = Identifier.of("journal", "textures/arrow.png");
-    private static final Identifier ARROW_FLIPPED_TEXTURE = Identifier.of("journal", "textures/arrow_flipped.png");
+    private static final Identifier ARROW_TEXTURE = Identifier.of("journal", "textures/arrow-icon.png");
+    private static final Identifier ARROW_HOVER_TEXTURE = Identifier.of("journal", "textures/arrow-icon-hover.png");
+
+    private static final Identifier ARROW_FLIPPED_TEXTURE = Identifier.of("journal", "textures/flipped-arrow-icon.png");
+    private static final Identifier ARROW_FLIPPED_HOVER_TEXTURE = Identifier.of("journal", "textures/flipped-arrow-icon-hover.png");
 
     private final boolean isNext;
     private final int x, y;
-    private final int width = 25, height = 23;
+    private final int width = 35, height = 22;
     private final Runnable onClick;
 
     private boolean hovered = false;
     public boolean visible = true;
     public boolean active = true;
+
+    private float fillProgress = 0f;
+    private final float fillSpeed = 0.05f; // How fast it fills/unfills per frame
 
     public PageTurnButton(int x, int y, boolean isNext, Runnable onClick) {
         this.x = x;
@@ -32,22 +38,48 @@ public class PageTurnButton {
 
         hovered = isMouseOver(mouseX, mouseY);
 
-        Identifier texture = isNext ? ARROW_TEXTURE : ARROW_FLIPPED_TEXTURE;
+        // Update fill progress
+        if (hovered) {
+            fillProgress = Math.min(1.0f, fillProgress + fillSpeed);
+        } else {
+            fillProgress = Math.max(0.0f, fillProgress - fillSpeed);
+        }
 
-        context.drawTexture(
-                texture,
-                x, y,
-                0, 0,
-                width, height,
-                width, height
-        );
+        // Choose textures
+        Identifier base = isNext ? ARROW_FLIPPED_TEXTURE : ARROW_TEXTURE;
+        Identifier fill = isNext ? ARROW_FLIPPED_HOVER_TEXTURE : ARROW_HOVER_TEXTURE;
 
-        if (hovered && active) {
-            context.fill(x, y, x + width, y + height, 0x33FFFFFF); // hover overlay
+        // Draw base arrow
+        context.drawTexture(base, x, y, 0, 0, width, height, width, height);
+
+        // Draw fill overlay with progressive width
+        if (fillProgress > 0) {
+            int fillWidth = (int) (width * fillProgress);
+
+            if (isNext) {
+                // Fill left to right
+                context.drawTexture(
+                        fill,
+                        x, y,
+                        0, 0,
+                        fillWidth, height,
+                        width, height
+                );
+            } else {
+                // Fill right to left
+                int offsetX = width - fillWidth;
+                context.drawTexture(
+                        fill,
+                        x + offsetX, y,
+                        offsetX, 0,
+                        fillWidth, height,
+                        width, height
+                );
+            }
         }
 
         if (!active) {
-            context.fill(x, y, x + width, y + height, 0x66000000); // disabled darken
+            context.fill(x, y, x + width, y + height, 0x66000000);
         }
 
         if (hovered) {

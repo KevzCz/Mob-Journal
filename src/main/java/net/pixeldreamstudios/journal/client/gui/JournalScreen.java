@@ -158,12 +158,12 @@
             int buttonY = y + pageHeight - 20;
 
             // ✅ Create buttons before updateFilteredList
-            nextButton = new PageTurnButton(x + pageWidth * 2 - 130, buttonY, true, () -> {
+            nextButton = new PageTurnButton(x + pageWidth * 2 - 135, buttonY, true, () -> {
                 currentPage++;
                 updateButtons();
             });
 
-            backButton = new PageTurnButton(x + 106, buttonY, false, () -> {
+            backButton = new PageTurnButton(x + 101, buttonY, false, () -> {
                 currentPage--;
                 updateButtons();
             });
