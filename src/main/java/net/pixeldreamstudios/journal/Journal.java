@@ -47,10 +47,18 @@ public class Journal implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		// 📦 Register C2S payloads
-		PayloadTypeRegistry.playC2S().register(UnlockMobPayload.ID, UnlockMobPayload.CODEC);
-		PayloadTypeRegistry.playC2S().register(OpenJournalPayload.ID, OpenJournalPayload.CODEC);
-		PayloadTypeRegistry.playC2S().register(RequestMobDropsPayload.ID, RequestMobDropsPayload.CODEC);
+		// ✅ Payload registration for clientbound packets (server side)
+		PayloadTypeRegistry.playS2C().register(SyncJournalPayload.ID, SyncJournalPayload.CODEC);
+		PayloadTypeRegistry.playS2C().register(SyncMobStatsPayload.ID, SyncMobStatsPayload.CODEC);
+		PayloadTypeRegistry.playS2C().register(DiscoveredMobToastPayload.ID, DiscoveredMobToastPayload.CODEC);
+		PayloadTypeRegistry.playS2C().register(SyncMobDropsPayload.ID, SyncMobDropsPayload.CODEC);
 
+		// ✅ Serverbound registrations
+		PayloadTypeRegistry.playC2S().register(OpenJournalPayload.ID, OpenJournalPayload.CODEC);
+		PayloadTypeRegistry.playC2S().register(UnlockMobPayload.ID, UnlockMobPayload.CODEC);
+		PayloadTypeRegistry.playC2S().register(RequestMobDropsPayload.ID, RequestMobDropsPayload.CODEC);
+		PayloadTypeRegistry.playC2S().register(SyncJournalPayload.ID, SyncJournalPayload.CODEC);
+		PayloadTypeRegistry.playC2S().register(ClientReadyPayload.ID, ClientReadyPayload.CODEC);
 		// 📊 Register mob stat handler
 		MobStatEventHandler.register();
 
@@ -101,11 +109,30 @@ public class Journal implements ModInitializer {
 				player.giveItemStack(new ItemStack(JOURNAL_ITEM));
 				journal.setReceivedJournal(true);
 
-				}
+			}
 		});
 		Registry.register(Registries.ITEM_GROUP, Identifier.of(MOD_ID, "tab"), JOURNAL_TAB);
 		ItemGroupEvents.modifyEntriesEvent(ItemGroups.TOOLS).register(entries -> {
 			entries.add(JOURNAL_ITEM);
 		});
+		ServerPlayNetworking.registerGlobalReceiver(ClientReadyPayload.ID, (payload, context) -> {
+			ServerPlayerEntity player = context.player();
+
+			context.player().server.execute(() -> {
+				var journal = JournalComponents.JOURNAL.get(player);
+
+				if (!journal.hasReceivedJournal()) {
+					player.giveItemStack(new ItemStack(Journal.JOURNAL_ITEM));
+					journal.setReceivedJournal(true);
+				}
+
+				// Only send data AFTER client says it's ready
+				ServerPlayNetworking.send(player, new SyncJournalPayload(journal.getDiscovered().stream().toList()));
+
+				var mobStats = JournalComponents.MOB_STATS.get(player);
+				ServerPlayNetworking.send(player, new SyncMobStatsPayload(mobStats.getAllStats()));
+			});
+		});
+
 	}
 }

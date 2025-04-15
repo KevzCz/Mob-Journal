@@ -3,6 +3,7 @@ package net.pixeldreamstudios.journal.client;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.client.MinecraftClient;
@@ -28,6 +29,7 @@ public class JournalClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+
         openJournalKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.journal.open",
                 InputUtil.Type.KEYSYM,
@@ -49,7 +51,6 @@ public class JournalClient implements ClientModInitializer {
             }
 
         });
-        PayloadTypeRegistry.playS2C().register(SyncMobDropsPayload.ID, SyncMobDropsPayload.CODEC);
         ClientPlayNetworking.registerGlobalReceiver(SyncMobDropsPayload.ID, (payload, context) -> {
             MinecraftClient.getInstance().execute(() -> {
                 JournalClientData.LAST_DROPS = new ArrayList<>(payload.drops().values());
@@ -59,11 +60,13 @@ public class JournalClient implements ClientModInitializer {
             });
         });
 
-        PayloadTypeRegistry.playS2C().register(SyncJournalPayload.ID, SyncJournalPayload.CODEC);
         ClientPlayNetworking.registerGlobalReceiver(SyncJournalPayload.ID, (payload, context) -> {
             MinecraftClient.getInstance().execute(() -> {
                 JournalClientData.DISCOVERED.clear();
                 JournalClientData.DISCOVERED.addAll(payload.mobIds());
+                if (MinecraftClient.getInstance().currentScreen instanceof JournalScreen journalScreen) {
+                    journalScreen.updateDiscoveredMobs(); // You'll define this method
+                }
                 MobUnlockTracker.resetSentMobs();
 
                 if (JournalClientData.shouldOpenJournalScreen) {
@@ -78,7 +81,6 @@ public class JournalClient implements ClientModInitializer {
             });
         });
 
-        PayloadTypeRegistry.playS2C().register(DiscoveredMobToastPayload.ID, DiscoveredMobToastPayload.CODEC);
         ClientPlayNetworking.registerGlobalReceiver(DiscoveredMobToastPayload.ID, (payload, context) -> {
             context.client().execute(() -> {
                 Identifier mobId = payload.mobId();
@@ -91,7 +93,6 @@ public class JournalClient implements ClientModInitializer {
             });
         });
 
-        PayloadTypeRegistry.playS2C().register(SyncMobStatsPayload.ID, SyncMobStatsPayload.CODEC);
         ClientPlayNetworking.registerGlobalReceiver(SyncMobStatsPayload.ID, (payload, context) -> {
             MinecraftClient.getInstance().execute(() -> {
                 JournalClientData.MOB_STATS.clear();
@@ -101,6 +102,9 @@ public class JournalClient implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             MobUnlockTracker.tick();
+        });
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            sender.sendPacket(ClientReadyPayload.INSTANCE);
         });
     }
 }

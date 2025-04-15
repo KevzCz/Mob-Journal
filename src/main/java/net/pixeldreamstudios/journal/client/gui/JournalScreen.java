@@ -122,6 +122,10 @@
                 currentPage = Math.max(totalPages - 1, 0);
             }
         }
+        public void updateDiscoveredMobs() {
+            this.updateFilteredList();
+            this.updateButtons();
+        }
 
 
 
