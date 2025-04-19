@@ -9,6 +9,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Box;
 import net.minecraft.registry.Registries;
 import io.netty.buffer.Unpooled;
+import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.network.UnlockMobPayload;
 
 import java.util.HashSet;
@@ -49,6 +50,7 @@ public class MobUnlockTracker {
             PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
             buf.writeIdentifier(id);
             if (!alreadySent.contains(id)) {
+                if (JournalConfig.blacklistedMobs.contains(id)) continue;
                 ClientPlayNetworking.send(new UnlockMobPayload(id));
                 alreadySent.add(id);
                 }

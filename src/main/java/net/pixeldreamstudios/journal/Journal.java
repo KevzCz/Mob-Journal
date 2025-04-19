@@ -20,6 +20,8 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import net.pixeldreamstudios.journal.block.ModBlocks;
+import net.pixeldreamstudios.journal.block.entity.MobDisplayBlockEntity;
 import net.pixeldreamstudios.journal.data.JournalComponent;
 import net.pixeldreamstudios.journal.data.JournalComponents;
 import net.pixeldreamstudios.journal.data.MobDescriptionLoader;
@@ -42,6 +44,7 @@ public class Journal implements ModInitializer {
 			.displayName(Text.translatable("itemGroup.journal.tab"))
 			.entries((context, entries) -> {
 				entries.add(JOURNAL_ITEM);
+				entries.add(ModBlocks.MOB_DISPLAY_BLOCK); // 👈 Add this line
 			})
 			.build();
 	@Override
@@ -59,8 +62,22 @@ public class Journal implements ModInitializer {
 		PayloadTypeRegistry.playC2S().register(RequestMobDropsPayload.ID, RequestMobDropsPayload.CODEC);
 		PayloadTypeRegistry.playC2S().register(SyncJournalPayload.ID, SyncJournalPayload.CODEC);
 		PayloadTypeRegistry.playC2S().register(ClientReadyPayload.ID, ClientReadyPayload.CODEC);
+		PayloadTypeRegistry.playC2S().register(SetMobIdPayload.ID, SetMobIdPayload.CODEC);
+
 		// 📊 Register mob stat handler
 		MobStatEventHandler.register();
+
+		ServerPlayNetworking.registerGlobalReceiver(SetMobIdPayload.ID, (payload, context) -> {
+			context.player().server.execute(() -> {
+				var world = context.player().getServerWorld();
+				var entity = world.getBlockEntity(payload.pos());
+				if (entity instanceof MobDisplayBlockEntity mobEntity) {
+					mobEntity.setMobId(payload.mobId());
+					System.out.println("[Server] Set mob ID to " + payload.mobId() + " at " + payload.pos());
+				}
+			});
+		});
+
 
 
 		// 🔓 Unlock mob packet
@@ -133,6 +150,7 @@ public class Journal implements ModInitializer {
 				ServerPlayNetworking.send(player, new SyncMobStatsPayload(mobStats.getAllStats()));
 			});
 		});
+		ModBlocks.register();
 
 	}
 }

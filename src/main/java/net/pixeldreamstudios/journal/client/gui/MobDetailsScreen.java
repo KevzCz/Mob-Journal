@@ -435,18 +435,40 @@ public class MobDetailsScreen extends Screen {
         matrices.scale(scale, -scale, scale);
         matrices.translate(0.0, -1.5, 0.0);
 
-        float angle = (System.currentTimeMillis() % 8000L) / 8000.0F * 360F;
-        entity.bodyYaw = angle;
-        entity.setYaw(angle);
-        entity.setPitch(0.0f);
-        entity.headYaw = angle;
+        try {
+            float angle = (System.currentTimeMillis() % 8000L) / 8000.0F * 360F;
+            entity.bodyYaw = angle;
+            entity.setYaw(angle);
+            entity.setPitch(0.0f);
+            entity.headYaw = angle;
 
-        dispatcher.setRenderShadows(false);
-        dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, 1.0f, matrices, context.getVertexConsumers(), 0xF000F0);
-        context.draw();
-        dispatcher.setRenderShadows(true);
+            dispatcher.setRenderShadows(false);
+            dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, 1.0f, matrices, context.getVertexConsumers(), 0xF000F0);
+            context.draw();
+            dispatcher.setRenderShadows(true);
+
+        } catch (Throwable t) {
+            dispatcher.setRenderShadows(true); // ensure shadows are re-enabled
+            matrices.pop(); // pop early to avoid matrix stack leaks
+
+            // ✅ fallback text for failed render
+            TextRenderer renderer = client.textRenderer;
+            String errorText = "Can't render mob";
+            int textWidth = renderer.getWidth(errorText);
+
+            context.drawTextWithShadow(
+                    renderer,
+                    Text.literal(errorText),
+                    x - textWidth / 2,
+                    y - 10,
+                    0xFF5555 // red text
+            );
+            return;
+        }
+
         matrices.pop();
     }
+
 
     @Override
     public boolean shouldPause() {

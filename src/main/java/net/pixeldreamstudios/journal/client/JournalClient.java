@@ -5,9 +5,11 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactories;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.EntityType;
 import net.minecraft.item.ItemStack;
@@ -17,8 +19,12 @@ import net.minecraft.util.Identifier;
 import net.pixeldreamstudios.journal.Journal;
 import net.pixeldreamstudios.journal.client.gui.JournalScreen;
 import net.pixeldreamstudios.journal.client.gui.MobDetailsScreen;
+import net.pixeldreamstudios.journal.client.toast.CustomToastManager;
 import net.pixeldreamstudios.journal.client.toast.MobDiscoveredToast;
+import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.network.*;
+import net.pixeldreamstudios.journal.registry.ModBlockEntities;
+import net.pixeldreamstudios.journal.client.render.MobDisplayBlockEntityRenderer;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -106,5 +112,14 @@ public class JournalClient implements ClientModInitializer {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             sender.sendPacket(ClientReadyPayload.INSTANCE);
         });
+        BlockEntityRendererFactories.register(
+                ModBlockEntities.MOB_DISPLAY_BLOCK_ENTITY,
+                MobDisplayBlockEntityRenderer::new
+        );
+        JournalConfig.load();
+        HudRenderCallback.EVENT.register((context, tickDelta) -> {
+            CustomToastManager.render(context);
+        });
+
     }
 }

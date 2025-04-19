@@ -15,6 +15,7 @@
     import net.pixeldreamstudios.journal.client.JournalClientData;
     import net.minecraft.client.gui.widget.TextFieldWidget;
     import net.minecraft.client.font.TextRenderer;
+    import net.pixeldreamstudios.journal.config.JournalConfig;
     import net.pixeldreamstudios.journal.events.JournalSounds;
 
     import java.util.ArrayList;
@@ -32,8 +33,8 @@
         private int totalPages = 0;
         private PageTurnButton nextButton;
         private PageTurnButton backButton;
-        private final List<MobSlot> mobSlots = new ArrayList<>();
-        private static class MobSlot {
+        public final List<MobSlot> mobSlots = new ArrayList<>();
+        public static class MobSlot {
             Identifier id;
             int x, y, width, height;
 
@@ -80,6 +81,7 @@
             List<Identifier> matched = new ArrayList<>();
 
             for (Identifier id : JournalClientData.DISCOVERED) {
+                if (JournalConfig.blacklistedMobs.contains(id)) continue;
                 if (namespaceFilter != null && !id.getNamespace().toLowerCase().contains(namespaceFilter.toLowerCase())) {
                     continue;
                 }
@@ -366,32 +368,40 @@
             matrices.scale(scale, -scale, scale);
             matrices.translate(0.0, -1.5, 0.0);
 
-            float angle = (System.currentTimeMillis() % 8000L) / 8000.0F * 360F;
-
-            if (entity.getType().toString().contains("ender_dragon")) {
-                entity.setPitch(0.0f);
-                entity.prevYaw = 0.0f;
-                entity.prevBodyYaw = 0.0f;
-                entity.setYaw(0.0f);
-                entity.setBodyYaw(0.0f);
-                entity.setHeadYaw(0.0f);
-            } else {
-                entity.prevYaw = angle;
-                entity.prevBodyYaw = angle;
+            try {
+                float angle = (System.currentTimeMillis() % 8000L) / 8000.0F * 360F;
+                entity.bodyYaw = angle;
                 entity.setYaw(angle);
-                entity.setBodyYaw(angle);
                 entity.setPitch(0.0f);
-                entity.setHeadYaw(angle);
+                entity.headYaw = angle;
+
+                dispatcher.setRenderShadows(false);
+                dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, 1.0f, matrices, context.getVertexConsumers(), 0xF000F0);
+                context.draw();
+                dispatcher.setRenderShadows(true);
+
+            } catch (Throwable t) {
+                dispatcher.setRenderShadows(true); // ensure shadows are re-enabled
+                matrices.pop(); // pop early to avoid matrix stack leaks
+
+                // ✅ fallback text for failed render
+                TextRenderer renderer = client.textRenderer;
+                String errorText = "Can't render mob";
+                int textWidth = renderer.getWidth(errorText);
+
+                context.drawTextWithShadow(
+                        renderer,
+                        Text.literal(errorText),
+                        x - textWidth / 2,
+                        y - 10,
+                        0xFF5555 // red text
+                );
+                return;
             }
-            entity.tick(); // after applying yaw values
 
-
-            dispatcher.setRenderShadows(false);
-            dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, 1.0f, matrices, context.getVertexConsumers(), 0xF000F0);
-            context.draw();
-            dispatcher.setRenderShadows(true);
             matrices.pop();
         }
+
 
         @Override
         public boolean shouldPause() {
