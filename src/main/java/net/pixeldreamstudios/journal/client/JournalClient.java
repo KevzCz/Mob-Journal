@@ -18,6 +18,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.hit.BlockHitResult;
 import net.pixeldreamstudios.journal.Journal;
+import net.pixeldreamstudios.journal.block.MobDisplayBlock;
 import net.pixeldreamstudios.journal.client.gui.JournalScreen;
 import net.pixeldreamstudios.journal.client.gui.MobDetailsScreen;
 import net.pixeldreamstudios.journal.client.gui.MobSelectorScreen;
@@ -125,11 +126,16 @@ public class JournalClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player != null && client.world != null && client.crosshairTarget instanceof BlockHitResult hit) {
                 if (client.options.useKey.isPressed()) {
-                    // You could check block type if needed
-                    client.setScreen(new MobSelectorScreen());
+                    var pos = hit.getBlockPos();
+                    var state = client.world.getBlockState(pos);
+
+                    if (state.getBlock() instanceof MobDisplayBlock) {
+                        client.setScreen(new MobSelectorScreen());
+                    }
                 }
             }
         });
+
 
     }
 }
