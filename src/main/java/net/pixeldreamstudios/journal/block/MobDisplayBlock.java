@@ -36,13 +36,6 @@ public class MobDisplayBlock extends BlockWithEntity {
         System.out.println("[MobDisplayBlock] onUse triggered at " + pos);
         if (player.isSneaking()) return ActionResult.PASS;
 
-        if (world.isClient) {
-            player.sendMessage(Text.literal("Opening Mob Selector UI..."), true);
-            net.minecraft.client.MinecraftClient.getInstance().setScreen(
-                    new net.pixeldreamstudios.journal.client.gui.MobSelectorScreen()
-            );
-        }
-
         return ActionResult.SUCCESS;
     }
 }

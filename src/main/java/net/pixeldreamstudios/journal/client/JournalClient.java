@@ -16,9 +16,11 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.hit.BlockHitResult;
 import net.pixeldreamstudios.journal.Journal;
 import net.pixeldreamstudios.journal.client.gui.JournalScreen;
 import net.pixeldreamstudios.journal.client.gui.MobDetailsScreen;
+import net.pixeldreamstudios.journal.client.gui.MobSelectorScreen;
 import net.pixeldreamstudios.journal.client.toast.CustomToastManager;
 import net.pixeldreamstudios.journal.client.toast.MobDiscoveredToast;
 import net.pixeldreamstudios.journal.config.JournalConfig;
@@ -119,6 +121,14 @@ public class JournalClient implements ClientModInitializer {
         JournalConfig.load();
         HudRenderCallback.EVENT.register((context, tickDelta) -> {
             CustomToastManager.render(context);
+        });
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (client.player != null && client.world != null && client.crosshairTarget instanceof BlockHitResult hit) {
+                if (client.options.useKey.isPressed()) {
+                    // You could check block type if needed
+                    client.setScreen(new MobSelectorScreen());
+                }
+            }
         });
 
     }
