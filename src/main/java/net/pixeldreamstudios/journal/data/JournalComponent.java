@@ -6,6 +6,7 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
+import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.network.SyncJournalPayload;
 import org.ladysnake.cca.api.v3.component.ComponentV3;
 import org.ladysnake.cca.api.v3.component.sync.AutoSyncedComponent;
@@ -36,6 +37,16 @@ public class JournalComponent implements ComponentV3, AutoSyncedComponent, Respa
         return added;
     }
     private boolean hasReceivedJournal = false;
+    public void clearDiscovered() {
+        this.discovered.clear();
+    }
+    public void removeBlacklistedMobs() {
+        discovered.removeIf(JournalConfig::isBlacklisted);
+    }
+
+    public boolean removeMob(Identifier id) {
+        return this.discovered.remove(id);
+    }
 
     public boolean hasReceivedJournal() {
         return hasReceivedJournal;

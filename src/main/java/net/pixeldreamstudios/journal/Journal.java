@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.command.CommandRegistryAccess;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemGroup;
 import net.minecraft.item.ItemGroups;
@@ -22,6 +23,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.pixeldreamstudios.journal.block.ModBlocks;
 import net.pixeldreamstudios.journal.block.entity.MobDisplayBlockEntity;
+import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.data.JournalComponent;
 import net.pixeldreamstudios.journal.data.JournalComponents;
 import net.pixeldreamstudios.journal.data.MobDescriptionLoader;
@@ -29,7 +31,9 @@ import net.pixeldreamstudios.journal.events.MobStatEventHandler;
 import net.pixeldreamstudios.journal.item.JournalItem;
 import net.pixeldreamstudios.journal.network.*;
 import net.pixeldreamstudios.journal.util.MobLootUtil;
-
+import net.minecraft.command.argument.IdentifierArgumentType;
+import net.pixeldreamstudios.journal.util.JournalCommands;
+import java.util.List;
 import java.util.Set;
 
 public class Journal implements ModInitializer {
@@ -49,6 +53,10 @@ public class Journal implements ModInitializer {
 			.build();
 	@Override
 	public void onInitialize() {
+		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
+			JournalCommands.register(dispatcher, registryAccess);
+		});
+
 		// 📦 Register C2S payloads
 		// ✅ Payload registration for clientbound packets (server side)
 		PayloadTypeRegistry.playS2C().register(SyncJournalPayload.ID, SyncJournalPayload.CODEC);
@@ -86,11 +94,37 @@ public class Journal implements ModInitializer {
 				var player = context.player();
 				var id = payload.mobId();
 				var journal = JournalComponents.JOURNAL.get(player);
-
+				if (JournalConfig.isBlacklisted(id)) return;
 				if (journal.unlockMob(id)) {
 					ServerPlayNetworking.send(player, new DiscoveredMobToastPayload(id));
 					ServerPlayNetworking.send(player, new SyncJournalPayload(journal.getDiscovered().stream().toList()));
 				}
+			});
+		});
+		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+			ServerPlayerEntity player = handler.getPlayer();
+			var journal = JournalComponents.JOURNAL.get(player);
+
+			if (!journal.hasReceivedJournal()) {
+				player.giveItemStack(new ItemStack(Journal.JOURNAL_ITEM));
+				journal.setReceivedJournal(true);
+			}
+
+			journal.removeBlacklistedMobs(); // 👈 Auto-clean
+		});
+		ServerPlayNetworking.registerGlobalReceiver(ClientReadyPayload.ID, (payload, context) -> {
+			ServerPlayerEntity player = context.player();
+
+			context.player().server.execute(() -> {
+				var journal = JournalComponents.JOURNAL.get(player);
+
+				journal.removeBlacklistedMobs(); // 👈 Again here
+
+				ServerPlayNetworking.send(player,
+						new SyncJournalPayload(journal.getDiscovered().stream().toList()));
+
+				var mobStats = JournalComponents.MOB_STATS.get(player);
+				ServerPlayNetworking.send(player, new SyncMobStatsPayload(mobStats.getAllStats()));
 			});
 		});
 

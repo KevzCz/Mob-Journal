@@ -13,6 +13,7 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.item.Items;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import net.minecraft.world.World;
 import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.events.JournalSounds;
@@ -32,6 +33,8 @@ public class MobDiscoveredToast implements Toast {
     }
 
     public static void show(EntityType<?> entityType, Text title, Text description) {
+        Identifier id = EntityType.getId(entityType);
+        if (JournalConfig.isBlacklisted(id)) return;
         CustomToastManager.add(new MobDiscoveredToast(entityType, title, description));
     }
 

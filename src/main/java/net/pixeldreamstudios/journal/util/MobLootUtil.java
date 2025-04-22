@@ -3,6 +3,7 @@ package net.pixeldreamstudios.journal.util;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.loot.LootTable;
 import net.minecraft.loot.context.LootContextParameterSet;
 import net.minecraft.loot.context.LootContextParameters;
@@ -25,8 +26,12 @@ public class MobLootUtil {
 
         int index = 0;
         for (Item item : allItems) {
-            drops.put(Identifier.of("journal", String.valueOf(index++)), new ItemStack(item));
+            ItemStack stack = new ItemStack(item);
+            if (!stack.isEmpty() && stack.getItem() != Items.AIR) {
+                drops.put(Identifier.of("journal", String.valueOf(index++)), stack);
+            }
         }
+
 
         return drops;
     }

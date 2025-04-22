@@ -27,6 +27,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 public class MobDetailsScreen extends Screen {
     private static final Identifier LEFT_PAGE = Identifier.of("journal", "textures/book.png");
@@ -125,8 +127,6 @@ public class MobDetailsScreen extends Screen {
                 var entity = type.create(world);
                 if (entity instanceof LivingEntity living) {
                     this.mob = living;
-                    mob.setPos(0, 0, 0);
-                    mob.tick();
                 }
             }
         }
@@ -425,6 +425,9 @@ public class MobDetailsScreen extends Screen {
         nextButton.render(context, mouseX, mouseY);
     }
 
+    // At the top of the class
+    private final Map<LivingEntity, Boolean> animatedEntities = new WeakHashMap<>();
+
     private void drawMob(DrawContext context, int x, int y, int scale, int mouseX, int mouseY, LivingEntity entity) {
         MinecraftClient client = MinecraftClient.getInstance();
         EntityRenderDispatcher dispatcher = client.getEntityRenderDispatcher();
@@ -436,11 +439,20 @@ public class MobDetailsScreen extends Screen {
         matrices.translate(0.0, -1.5, 0.0);
 
         try {
-            float angle = (System.currentTimeMillis() % 8000L) / 8000.0F * 360F;
-            entity.bodyYaw = angle;
-            entity.setYaw(angle);
+            long time = System.currentTimeMillis();
+
+            // Simulate idle animation like in renderMobGrid
+            float walkSpeed = 3f;
+            float walkPos = (time % 10000L) / 1000.0f * walkSpeed;
+            ((net.pixeldreamstudios.journal.mixin.LimbAnimatorAccessor) entity.limbAnimator).setPos(walkPos);
+            entity.limbAnimator.updateLimbs(0.35f, 1f);
+
+            float spin = (time % 8000L) / 8000.0f * 360F;
+            entity.bodyYaw = spin;
+            entity.setYaw(spin);
             entity.setPitch(0.0f);
-            entity.headYaw = angle;
+            entity.headYaw = spin;
+            entity.age = (int)(time / 50L); // for some idle animation triggers
 
             dispatcher.setRenderShadows(false);
             dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, 1.0f, matrices, context.getVertexConsumers(), 0xF000F0);
@@ -448,26 +460,21 @@ public class MobDetailsScreen extends Screen {
             dispatcher.setRenderShadows(true);
 
         } catch (Throwable t) {
-            dispatcher.setRenderShadows(true); // ensure shadows are re-enabled
-            matrices.pop(); // pop early to avoid matrix stack leaks
+            dispatcher.setRenderShadows(true);
+            matrices.pop();
 
-            // ✅ fallback text for failed render
             TextRenderer renderer = client.textRenderer;
             String errorText = "Can't render mob";
             int textWidth = renderer.getWidth(errorText);
 
-            context.drawTextWithShadow(
-                    renderer,
-                    Text.literal(errorText),
-                    x - textWidth / 2,
-                    y - 10,
-                    0xFF5555 // red text
-            );
+            context.drawTextWithShadow(renderer, Text.literal(errorText), x - textWidth / 2, y - 10, 0xFF5555);
             return;
         }
 
         matrices.pop();
     }
+
+
 
 
     @Override
