@@ -89,7 +89,7 @@
 
 ✅ Tooltips appear in-game on hover.
 
-Items without tooltips will be using Minecraft's tooltip
+
 
 ---
 
@@ -102,6 +102,8 @@ You can embed **items** and **textures** inline.
 ```
 [item](item:namespace:item_id scale=1.0 "Optional Tooltip")
 ```
+
+Items without tooltips will be using Minecraft's tooltip
 
 **Texture Example:**
 
