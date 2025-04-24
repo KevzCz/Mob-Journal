@@ -22,10 +22,10 @@ To customize or add descriptions:
 {
   "description": [
     "## {mobName}",
-    "*The undead menace that groans in the night...*",
+    "*The undead menace that groans in the night... {ofus}aaaa{reset}*",
     "",
-    "{§c}Health:{§r} {getHealth}",
-    "{§7}Armor:{§r} {getArmor}",
+    "{red}Health:{reset} {getHealth}",
+    "{gray}Armor:{reset} {getArmor}",
     "",
     "[Hello!](hover:This is a tooltip shown when hovered!)",
     "",
@@ -37,22 +37,30 @@ To customize or add descriptions:
     "{getLootDrops}",
     "",
     "**Treasure Example:**",
-    "[Diamond](item:minecraft:diamond scale=1.0 \"A precious gem\")",
-    "[Rotten Flesh](item:minecraft:rotten_flesh scale=1.0 \"Smells bad\")",
-    "[item](item:minecraft:diamond_sword scale=2)",
-    "Some text1 [Sword](texture:journal:icon.png) [Shield](texture:journal:icon.png)\n",
-    "Some text2 [Rotten Flesh](item:minecraft:rotten_flesh) [Rotten Flesh](item:minecraft:rotten_flesh)\n",
+    "[Diamond](item:minecraft:diamond scale=1.0 \"{gold}A precious gem{reset}\")",
+    "[Rotten Flesh](item:minecraft:rotten_flesh scale=1.0 \"{red}Smells bad{reset}\")",
+    "[item](item:minecraft:diamond_sword scale=2.0 \"{light_purple}Epic weapon!{reset}\")",
+    "",
+    "Some text before the textures: [Sword](texture:journal:icon.png scale=1.0 \"Sword icon\") [Shield](texture:journal:icon.png scale=1.0 \"Shield icon\")",
+    "Even more items: [Rotten Flesh](item:minecraft:rotten_flesh scale=1.0) [Rotten Flesh](item:minecraft:rotten_flesh scale=1.0)",
     "",
     "**Texture Example:**",
-    "[Logo](texture:journal:icon.png scale=1.0 \"Custom icon from your mod\")",
+    "[Logo](texture:journal:icon.png scale=1.0 \"{aqua}Custom icon from your mod{reset}\")",
     "",
-    "{§6}Tip:{§r} You can customize this description using markdown!"
+    "{gold}Tip:{reset} You can customize this description using markdown!",
+    "",
+    "{italic}Fun Fact:{reset} You can use *italics*, **bold**, and {dark_purple}colors{reset} too!"
   ]
 }
+
 ```
-![image](https://github.com/user-attachments/assets/4d73d478-780d-4f41-9fd8-80ecd206223f)
-![image](https://github.com/user-attachments/assets/d3cf14a2-e3b1-411d-8b00-50e876366467)
-![image](https://github.com/user-attachments/assets/ee8c8026-7bed-484a-b1dd-24a57d51e90d)
+![image](https://github.com/user-attachments/assets/188c1ae7-9b67-4a2a-a8e4-8d66498d0d56)
+
+![image](https://github.com/user-attachments/assets/0d1cf9d6-60e8-4b49-8c82-2bb80e62da19)
+
+![image](https://github.com/user-attachments/assets/ef5b8ec4-b026-48de-8cad-fce54e5d2c0f)
+
+![image](https://github.com/user-attachments/assets/41d2b03d-fa16-4ca8-8e2e-f8b4cd74967f)
 
 
 
