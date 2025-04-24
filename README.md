@@ -159,7 +159,6 @@ If a specific mob has no custom description, Mob Journal checks:
   - Resource packs
   - Mods
   - Modpacks
-- Always validate that `{getLootDrops}` doesn't include empty ItemStacks (like `minecraft:air`), or it may crash.
 
 
 📦 **Perfect for modpacks**  
