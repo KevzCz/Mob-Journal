@@ -46,7 +46,14 @@ public class MobDetailsScreen extends Screen {
     private final String returnQuery;
     private final int mobSlotW = 120, mobSlotH = 140;
     private final int descSlotW = 110, descSlotH = 120;
+    private final Map<Identifier, CachedPose> poseCache = new java.util.HashMap<>();
+    private int renderFrameCounter = 0;
 
+    private static class CachedPose {
+        float limbPos, yaw;
+        int age;
+        long lastUpdated;
+    }
     public MobDetailsScreen(Identifier mobId, int returnPage, String returnQuery) {
         super(Text.literal("Mob Info"));
         this.mobId = mobId;
@@ -89,7 +96,6 @@ public class MobDetailsScreen extends Screen {
             for (ItemStack stack : JournalClientData.LAST_DROPS) {
                 ParsedLine icon = new ParsedLine(stack);
                 icon.scale = 1.0f;
-                icon.tooltip = stack.getName();
                 dropIcons.add(icon);
             }
 
@@ -144,7 +150,6 @@ public class MobDetailsScreen extends Screen {
             for (ItemStack stack : JournalClientData.LAST_DROPS) {
                 ParsedLine icon = new ParsedLine(stack);
                 icon.scale = 1.0f;
-                icon.tooltip = stack.getName();
                 dropIcons.add(icon);
             }
 
@@ -373,27 +378,9 @@ public class MobDetailsScreen extends Screen {
 
                         if (mouseX >= drawX && mouseX <= drawX + iconSize &&
                                 mouseY >= drawY && mouseY <= drawY + iconSize) {
-                            List<Text> tooltip = part.tooltip != null && !part.tooltip.getString().isBlank()
-                                    ? List.of(part.tooltip)
-                                    : part.item.getTooltip(
-                                    new Item.TooltipContext() {
-                                        @Override public RegistryWrapper.WrapperLookup getRegistryLookup() { return null; }
-                                        @Override public float getUpdateTickRate() { return 0; }
-                                        @Override public MapState getMapState(MapIdComponent component) { return null; }
-
-                                        public boolean isAdvanced() {
-                                            return MinecraftClient.getInstance().options.advancedItemTooltips;
-                                        }
-
-                                        public boolean isCreative() {
-                                            return MinecraftClient.getInstance().player != null &&
-                                                    MinecraftClient.getInstance().player.isCreative();
-                                        }
-                                    },
-                                    MinecraftClient.getInstance().player,
-                                    MinecraftClient.getInstance().options.advancedItemTooltips
-                                            ? TooltipType.ADVANCED : TooltipType.BASIC);
+                            List<Text> tooltip = getEffectiveTooltip(part, part.item, mouseX, mouseY);
                             context.drawTooltip(renderer, tooltip, mouseX, mouseY);
+
                         }
 
                         xOffset += iconSize + 2;
@@ -423,10 +410,48 @@ public class MobDetailsScreen extends Screen {
         backButton.render(context, mouseX, mouseY);
         backDescButton.render(context, mouseX, mouseY);
         nextButton.render(context, mouseX, mouseY);
+        context.draw();
     }
 
     // At the top of the class
     private final Map<LivingEntity, Boolean> animatedEntities = new WeakHashMap<>();
+    private List<Text> getEffectiveTooltip(ParsedLine part, ItemStack item, int mouseX, int mouseY) {
+        if (part.isItem()) {
+            // Always use vanilla tooltip for items unless explicitly overridden
+            if (part.hasExplicitTooltip && part.tooltip != null && !part.tooltip.getString().isBlank()) {
+                return List.of(part.tooltip);
+            }
+
+            return item.getTooltip(
+                    new Item.TooltipContext() {
+                        @Override public RegistryWrapper.WrapperLookup getRegistryLookup() { return null; }
+                        @Override public float getUpdateTickRate() { return 0; }
+                        @Override public MapState getMapState(MapIdComponent component) { return null; }
+
+                        public boolean isAdvanced() {
+                            return MinecraftClient.getInstance().options.advancedItemTooltips;
+                        }
+
+                        public boolean isCreative() {
+                            return MinecraftClient.getInstance().player != null &&
+                                    MinecraftClient.getInstance().player.isCreative();
+                        }
+                    },
+                    MinecraftClient.getInstance().player,
+                    MinecraftClient.getInstance().options.advancedItemTooltips
+                            ? TooltipType.ADVANCED
+                            : TooltipType.BASIC
+            );
+        }
+
+
+        if (part.tooltip != null && !part.tooltip.getString().isBlank()) {
+            return List.of(part.tooltip);
+        }
+
+        return List.of();
+
+    }
 
     private void drawMob(DrawContext context, int x, int y, int scale, int mouseX, int mouseY, LivingEntity entity) {
         MinecraftClient client = MinecraftClient.getInstance();
@@ -439,25 +464,29 @@ public class MobDetailsScreen extends Screen {
         matrices.translate(0.0, -1.5, 0.0);
 
         try {
-            long time = System.currentTimeMillis();
+            renderFrameCounter = (renderFrameCounter + 1) % 3;
+            boolean updatePose = renderFrameCounter == 0;
 
-            // Simulate idle animation like in renderMobGrid
-            float walkSpeed = 3f;
-            float walkPos = (time % 10000L) / 1000.0f * walkSpeed;
-            ((net.pixeldreamstudios.journal.mixin.LimbAnimatorAccessor) entity.limbAnimator).setPos(walkPos);
+            CachedPose pose = poseCache.computeIfAbsent(mobId, k -> new CachedPose());
+            long now = System.currentTimeMillis();
+
+            if (updatePose || now - pose.lastUpdated > 250) {
+                pose.limbPos = (now % 10000L) / 1000.0f * 3f;
+                pose.yaw = (now % 8000L) / 8000.0f * 360F;
+                pose.age = (int)(now / 50L);
+                pose.lastUpdated = now;
+            }
+
+            ((net.pixeldreamstudios.journal.mixin.LimbAnimatorAccessor) entity.limbAnimator).setPos(pose.limbPos);
             entity.limbAnimator.updateLimbs(0.35f, 1f);
-
-            float spin = (time % 8000L) / 8000.0f * 360F;
-            entity.bodyYaw = spin;
-            entity.setYaw(spin);
+            entity.bodyYaw = pose.yaw;
+            entity.setYaw(pose.yaw);
             entity.setPitch(0.0f);
-            entity.headYaw = spin;
-            entity.age = (int)(time / 50L); // for some idle animation triggers
+            entity.headYaw = pose.yaw;
+            entity.age = pose.age;
 
             dispatcher.setRenderShadows(false);
             dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, 1.0f, matrices, context.getVertexConsumers(), 0xF000F0);
-            context.draw();
-            dispatcher.setRenderShadows(true);
 
         } catch (Throwable t) {
             dispatcher.setRenderShadows(true);

@@ -27,9 +27,10 @@ public class MobLootUtil {
         int index = 0;
         for (Item item : allItems) {
             ItemStack stack = new ItemStack(item);
-            if (!stack.isEmpty() && stack.getItem() != Items.AIR) {
+            if (!stack.isEmpty() && stack.getItem() != Items.AIR && stack.getCount() > 0) {
                 drops.put(Identifier.of("journal", String.valueOf(index++)), stack);
             }
+
         }
 
 

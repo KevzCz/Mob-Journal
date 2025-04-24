@@ -107,9 +107,10 @@ public class MarkdownParser {
                     ParsedLine linePart = new ParsedLine(stack);
                     linePart.scale = scale;
 
-                    if (tooltipStr != null && !tooltipStr.isBlank()) {
+                    if (tooltipStr != null && !tooltipStr.strip().isEmpty()) {
                         linePart.tooltip = Text.literal(replaceMarkdown(tooltipStr));
-                        }
+                        linePart.hasExplicitTooltip = true;
+                    }
 
                     parts.add(linePart);
                 } else {
@@ -121,7 +122,7 @@ public class MarkdownParser {
                     ParsedLine linePart = new ParsedLine(id);
                     linePart.scale = scale;
 
-                    if (tooltipStr != null && !tooltipStr.isBlank()) {
+                    if (tooltipStr != null && !tooltipStr.strip().isEmpty()) {
                         linePart.tooltip = Text.literal(replaceMarkdown(tooltipStr));
                     }
 
@@ -142,12 +143,42 @@ public class MarkdownParser {
 
         return parts;
     }
+    private static final Map<String, String> COLOR_CODES = Map.ofEntries(
+            Map.entry("black", "§0"),
+            Map.entry("dark_blue", "§1"),
+            Map.entry("dark_green", "§2"),
+            Map.entry("dark_aqua", "§3"),
+            Map.entry("dark_red", "§4"),
+            Map.entry("dark_purple", "§5"),
+            Map.entry("gold", "§6"),
+            Map.entry("gray", "§7"),
+            Map.entry("dark_gray", "§8"),
+            Map.entry("blue", "§9"),
+            Map.entry("green", "§a"),
+            Map.entry("aqua", "§b"),
+            Map.entry("red", "§c"),
+            Map.entry("light_purple", "§d"),
+            Map.entry("yellow", "§e"),
+            Map.entry("white", "§f"),
+            Map.entry("obfuscated", "§k"),
+            Map.entry("bold", "§l"),
+            Map.entry("strikethrough", "§m"),
+            Map.entry("underline", "§n"),
+            Map.entry("italic", "§o"),
+            Map.entry("reset", "§r"),
+            Map.entry("ofus", "§k")
+    );
 
     private static String replaceMarkdown(String input) {
-        String result = input;
-        result = BOLD.matcher(result).replaceAll("§l$1§r");
+        // Replace **bold** and *italic* markdown
+        String result = BOLD.matcher(input).replaceAll("§l$1§r");
         result = ITALIC.matcher(result).replaceAll("§o$1§r");
-        result = result.replaceAll("\\{(§[0-9a-fk-or])}", "$1");
+
+        // Replace {color} placeholders
+        for (Map.Entry<String, String> entry : COLOR_CODES.entrySet()) {
+            result = result.replace("{" + entry.getKey() + "}", entry.getValue());
+        }
+
         return result;
     }
 
@@ -176,11 +207,14 @@ public class MarkdownParser {
             this.item = ItemStack.EMPTY;
             this.text = null;
         }
-
+        public boolean hasExplicitTooltip = false;
         public boolean isText() { return text != null; }
         public boolean isItem() { return !item.isEmpty(); }
         public boolean isTexture() { return texture != null && text == null; }
-        public boolean hasTooltip() { return tooltip != null; }
+        public boolean hasTooltip() {
+            return tooltip != null && !tooltip.getString().isBlank();
+        }
+
     }
 
 }

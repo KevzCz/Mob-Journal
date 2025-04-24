@@ -18,7 +18,9 @@ import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.events.JournalSounds;
 import net.pixeldreamstudios.journal.mixin.LimbAnimatorAccessor;
 
+import java.awt.*;
 import java.util.*;
+import java.util.List;
 
 public class JournalScreen extends Screen {
     private static final Identifier LEFT_PAGE = Identifier.of("journal", "textures/book.png");
@@ -39,6 +41,14 @@ public class JournalScreen extends Screen {
 
     // 🧠 Lightweight page-based cache
     private final Map<Identifier, LivingEntity> currentPageMobMap = new HashMap<>();
+    private final Map<Identifier, CachedPose> poseCache = new HashMap<>();
+    private int renderFrameCounter = 0;
+
+    private static class CachedPose {
+        float limbPos, yaw;
+        int age;
+        long lastUpdated;
+    }
 
     public static class MobSlot {
         Identifier id;
@@ -180,9 +190,47 @@ public class JournalScreen extends Screen {
         nextButton.visible = currentPage < totalPages - 1;
         backButton.visible = currentPage > 0;
     }
+    private static class Nameplate {
+        String fullName;
+        StringBuilder name;
+        int centerX, topY;
+        Rectangle bounds;
+        int fullLength;
+        boolean hovered = false;
+
+        public Nameplate(String fullName, int centerX, int topY, TextRenderer renderer) {
+            this.fullName = fullName;
+            this.name = new StringBuilder(fullName);
+            this.fullLength = fullName.length();
+            this.centerX = centerX;
+            this.topY = topY;
+            this.bounds = calculateBounds(renderer);
+        }
+
+        public Rectangle calculateBounds(TextRenderer renderer) {
+            String display = getDisplayName();
+            int width = renderer.getWidth(display);
+            return new Rectangle(centerX - width / 2, topY, width, 9);
+        }
+
+        public void trim() {
+            if (name.length() > 3) {
+                name.setLength(name.length() - 1);
+            }
+        }
+
+        public String getDisplayName() {
+            return hovered ? fullName : (name.length() < fullLength ? name + "..." : name.toString());
+        }
+    }
+
+
+
 
     private void renderMobGrid(DrawContext context, int leftStartX, int startY, int mouseX, int mouseY) {
         mobSlots.clear();
+        renderFrameCounter = (renderFrameCounter + 1) % 3; // Only update pose every 3 frames
+        boolean updatePose = renderFrameCounter == 0;
 
         MinecraftClient client = MinecraftClient.getInstance();
         World world = client.world;
@@ -200,7 +248,9 @@ public class JournalScreen extends Screen {
         int boxHeight = 40;
 
         int leftPageStartX = leftStartX;
-        int rightPageStartX = leftPageStartX + 140;
+        int rightPageStartX = leftPageStartX + 145;
+
+        List<Nameplate> pendingNameplates = new ArrayList<>();
 
         for (int i = startIndex; i < endIndex; i++) {
             Identifier id = filteredMobs.get(i);
@@ -231,32 +281,96 @@ public class JournalScreen extends Screen {
                 context.fill(x - boxWidth / 2, y - boxHeight / 2, x + boxWidth / 2, y + boxHeight / 2, color);
             }
 
-            long time = System.currentTimeMillis();
-            float walkSpeed = 3f;
-            float walkPos = (time % 10000L) / 1000.0f * walkSpeed;
-            ((LimbAnimatorAccessor) living.limbAnimator).setPos(walkPos);
+            CachedPose pose = poseCache.computeIfAbsent(id, k -> new CachedPose());
+            long now = System.currentTimeMillis();
+            if (updatePose || now - pose.lastUpdated > 250) {
+                pose.limbPos = (now % 10000L) / 1000.0f * 3f;
+                pose.yaw = (now % 8000L) / 8000.0f * 360F;
+                pose.age = (int) (now / 50L);
+                pose.lastUpdated = now;
+            }
+
+            ((LimbAnimatorAccessor) living.limbAnimator).setPos(pose.limbPos);
             living.limbAnimator.updateLimbs(0.35f, 1f);
-            float spin = (time % 8000L) / 8000.0f * 360F;
-            living.bodyYaw = spin;
-            living.setYaw(spin);
+            living.bodyYaw = pose.yaw;
+            living.setYaw(pose.yaw);
             living.setPitch(0.0f);
-            living.headYaw = spin;
-            living.age = (int)(time / 50L);
+            living.headYaw = pose.yaw;
+            living.age = pose.age;
+
 
             int scale = isHovered ? hoverScale : baseScale;
             drawMob(context, x, y, scale, mouseX, mouseY, living);
+            Nameplate plate = new Nameplate(
+                    living.getDisplayName().getString(),
+                    x,
+                    y + scale + 10,
+                    client.textRenderer
+            );
+            plate.hovered = isHovered;
+            pendingNameplates.add(plate);
+        }
 
-            String name = living.getDisplayName().getString();
-            float textScale = 0.75f;
+        // 🧠 Do all trimming and drawing after collecting
+        drawNameplate(context, pendingNameplates, client.textRenderer);
+    }
+
+    private void drawNameplate(DrawContext context, List<Nameplate> plates, TextRenderer renderer) {
+        boolean changed;
+        do {
+            changed = false;
+            for (int i = 0; i < plates.size(); i++) {
+                for (int j = i + 1; j < plates.size(); j++) {
+                    Nameplate a = plates.get(i);
+                    Nameplate b = plates.get(j);
+
+                    if (a.bounds.intersects(b.bounds)) {
+                        boolean trimmedA = false, trimmedB = false;
+
+                        if (a.name.length() > 3) {
+                            a.trim();
+                            a.bounds = a.calculateBounds(renderer);
+                            trimmedA = true;
+                        }
+
+                        if (b.name.length() > 3) {
+                            b.trim();
+                            b.bounds = b.calculateBounds(renderer);
+                            trimmedB = true;
+                        }
+
+                        // Only loop again if something was actually trimmed
+                        if (trimmedA || trimmedB) {
+                            changed = true;
+                        }
+                    }
+                }
+            }
+        } while (changed);
+
+        // Render final nameplates
+        for (Nameplate plate : plates) {
             MatrixStack matrices = context.getMatrices();
             matrices.push();
-            matrices.translate(x - 3, y + scale + 10, 0);
-            matrices.scale(textScale, textScale, 1.0f);
-            int adjustedTextWidth = (int) (client.textRenderer.getWidth(name) * textScale);
-            context.drawText(client.textRenderer, name, -(adjustedTextWidth / 2), 0, 0x000000, false);
+            matrices.translate(plate.centerX, plate.topY, 0);
+            matrices.scale(0.75f, 0.75f, 1f);
+
+            String display = plate.getDisplayName();
+            context.drawText(
+                    renderer,
+                    display,
+                    -renderer.getWidth(display) / 2,
+                    0,
+                    0x000000,
+                    false
+            );
+
             matrices.pop();
         }
     }
+
+
+
 
     private void drawMob(DrawContext context, int x, int y, int scale, int mouseX, int mouseY, LivingEntity entity) {
         MinecraftClient client = MinecraftClient.getInstance();
@@ -271,7 +385,6 @@ public class JournalScreen extends Screen {
         try {
             dispatcher.setRenderShadows(false);
             dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, 1.0f, matrices, context.getVertexConsumers(), 0xF000F0);
-            context.draw();
         } catch (Throwable t) {
             TextRenderer renderer = client.textRenderer;
             int textWidth = renderer.getWidth("Can't render mob");
@@ -352,7 +465,7 @@ public class JournalScreen extends Screen {
         searchBox.render(context, mouseX, mouseY, delta);
 
         renderMobGrid(context, x + 176, y + 38, mouseX, mouseY);
-
+        context.draw();
         nextButton.render(context, mouseX, mouseY);
         backButton.render(context, mouseX, mouseY);
     }

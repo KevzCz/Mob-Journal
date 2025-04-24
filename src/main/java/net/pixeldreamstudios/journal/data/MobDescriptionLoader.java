@@ -253,7 +253,6 @@ public class MobDescriptionLoader {
             if (!stack.isEmpty()) {
                 ParsedLine icon = new ParsedLine(stack);
                 icon.scale = 1.0f;
-                icon.tooltip = stack.getName();
                 dropIcons.add(icon);
             }
         }

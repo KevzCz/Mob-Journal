@@ -1,6 +1,7 @@
 package net.pixeldreamstudios.journal.network;
 
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
@@ -31,8 +32,12 @@ public record SyncMobDropsPayload(Map<Identifier, ItemStack> drops) implements C
     }
 
     public void write(RegistryByteBuf buf) {
-        buf.writeVarInt(drops.size());
-        for (var entry : drops.entrySet()) {
+        var validDrops = drops.entrySet().stream()
+                .filter(entry -> !entry.getValue().isEmpty() && entry.getValue().getItem() != Items.AIR)
+                .toList();
+
+        buf.writeVarInt(validDrops.size());
+        for (var entry : validDrops) {
             buf.writeIdentifier(entry.getKey());
             ItemStack.PACKET_CODEC.encode(buf, entry.getValue());
         }
