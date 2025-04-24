@@ -1,31 +1,36 @@
+
+
+
+
+
 # 📘 Mob Journal – Custom Mob Descriptions
 
-Mob Journal supports **custom descriptions** for any mob using simple, readable **Markdown** files. This makes it easy for modpack creators or players to personalize lore, stats, or fun facts about their favorite mobs.
+**Mob Journal** supports fully customizable descriptions for mobs using simple, readable **Markdown** in JSON. Great for modpack creators, lore builders, or anyone wanting to add flavor and detail to mobs.
 
 ---
 
 ## 🛠️ How to Add Custom Mob Descriptions
 
-To customize or add descriptions:
-
-1. Go to your Minecraft instance's resource pack or data pack folder.
-2. Navigate (or create) the path:
-
+1. Open your Minecraft instance folder.
+2. Navigate or create the path:
+   ```
    assets/journal/mobs_desc/<mod_namespace>/<mob_name>.json
-
-   Example:
+   ```
+   ✅ **Example:**
+   ```
    assets/journal/mobs_desc/minecraft/zombie.json
+   ```
 
-3. Inside the `.json` file, use the following example format:
+3. Create a JSON file with the following content:
 
 ```json
 {
   "description": [
     "## {mobName}",
-    "*The undead menace that groans in the night...*",
+    "*The undead menace that groans in the night... {ofus}aaaa{reset}*",
     "",
-    "{§c}Health:{§r} {getHealth}",
-    "{§7}Armor:{§r} {getArmor}",
+    "{red}Health:{reset} {getHealth}",
+    "{gray}Armor:{reset} {getArmor}",
     "",
     "[Hello!](hover:This is a tooltip shown when hovered!)",
     "",
@@ -37,125 +42,128 @@ To customize or add descriptions:
     "{getLootDrops}",
     "",
     "**Treasure Example:**",
-    "[Diamond](item:minecraft:diamond scale=1.0 \"A precious gem\")",
-    "[Rotten Flesh](item:minecraft:rotten_flesh scale=1.0 \"Smells bad\")",
-    "[item](item:minecraft:diamond_sword scale=2)",
-    "Some text1 [Sword](texture:journal:icon.png) [Shield](texture:journal:icon.png)\n",
-    "Some text2 [Rotten Flesh](item:minecraft:rotten_flesh) [Rotten Flesh](item:minecraft:rotten_flesh)\n",
+    "[Diamond](item:minecraft:diamond scale=1.0 \"{gold}A precious gem{reset}\")",
+    "[Rotten Flesh](item:minecraft:rotten_flesh scale=1.0 \"{red}Smells bad{reset}\")",
+    "[item](item:minecraft:diamond_sword scale=2.0 \"{light_purple}Epic weapon!{reset}\")",
+    "",
+    "Some text before the textures: [Sword](texture:journal:icon.png scale=1.0 \"Sword icon\") [Shield](texture:journal:icon.png scale=1.0 \"Shield icon\")",
+    "Even more items: [Rotten Flesh](item:minecraft:rotten_flesh scale=1.0) [Rotten Flesh](item:minecraft:rotten_flesh scale=1.0)",
     "",
     "**Texture Example:**",
-    "[Logo](texture:journal:icon.png scale=1.0 \"Custom icon from your mod\")",
+    "[Logo](texture:journal:icon.png scale=1.0 \"{aqua}Custom icon from your mod{reset}\")",
     "",
-    "{§6}Tip:{§r} You can customize this description using markdown!"
+    "{gold}Tip:{reset} You can customize this description using markdown!",
+    "",
+    "{italic}Fun Fact:{reset} You can use *italics*, **bold**, and {dark_purple}colors{reset} too!"
   ]
 }
 ```
-![image](https://github.com/user-attachments/assets/4d73d478-780d-4f41-9fd8-80ecd206223f)
-![image](https://github.com/user-attachments/assets/d3cf14a2-e3b1-411d-8b00-50e876366467)
-![image](https://github.com/user-attachments/assets/ee8c8026-7bed-484a-b1dd-24a57d51e90d)
+![image](https://github.com/user-attachments/assets/188c1ae7-9b67-4a2a-a8e4-8d66498d0d56)
+![image](https://github.com/user-attachments/assets/0d1cf9d6-60e8-4b49-8c82-2bb80e62da19)
+![image](https://github.com/user-attachments/assets/ef5b8ec4-b026-48de-8cad-fce54e5d2c0f)
+![image](https://github.com/user-attachments/assets/41d2b03d-fa16-4ca8-8e2e-f8b4cd74967f)
+---
 
+## 🧩 Supported Variables
 
+| Variable           | Description                            |
+|--------------------|----------------------------------------|
+| `{mobName}`        | The display name of the mob            |
+| `{getHealth}`      | Max health of the mob                  |
+| `{getArmor}`       | Armor value                            |
+| `{getLootDrops}`   | Automatically shows known drops        |
+| `{getTimesKilled}` | Times the player has slain the mob     |
+| `{getTimesDiedTo}` | Times the mob has slain the player     |
+| `{namespace}`      | The namespace of the mob's ID          |
 
+---
 
+## ✨ Markdown & Tooltip Features
+
+| Feature   | Syntax              | Example                    |
+|-----------|---------------------|----------------------------|
+| Bold      | `**text**`          | `**bold**`                 |
+| Italic    | `*text*`            | `*italic*`                 |
+| Heading   | `## Title`          | `## Mob Info`              |
+| Tooltip   | `[word](hover:tip)` | `[hover me](hover:Hi!)`    |
+
+✅ Tooltips appear in-game on hover.
 
 
 
 ---
 
-## 🧩 Variables
+## 🖼️ Items & Textures
 
-You can use the following variables in your text:
+You can embed **items** and **textures** inline.
 
-| Variable | Description |
-|---------|-------------|
-| {mobName} | The mob's display name |
-| {getHealth} | Max health of the mob |
-| {getArmor} | Armor value |
-| {getLootDrops} | Automatically filled with known drops |
-| {getTimesKilled} | Times you've killed this mob |
-| {getTimesDiedTo} | Times this mob killed you |
-| {namespace} | Mob's namespace (e.g., minecraft) |
+**Item Example:**
 
----
+```
+[item](item:namespace:item_id scale=1.0 "Optional Tooltip")
+```
 
-## ✨ Markdown Formatting
+Items without tooltips will be using Minecraft's tooltip
 
-| Feature | Syntax | Example |
-|--------|--------|---------|
-| Bold | **text** | **bold** |
-| Italic | *text* | *italic* |
-| Headers | ## Title | ## Title |
-| Tooltip | [word](hover:Tooltip here) | [hover me](hover:Hi!) |
+**Texture Example:**
 
----
+```
+[texture](texture:namespace:path/to/image.png scale=1.0 "Optional Tooltip")
+```
 
-## 🎨 Icons & Textures
-
-You can embed items and textures using this inline syntax:
-
-[Label](item:namespace:item_id scale=1.0 "Optional tooltip")  
-[Label](texture:namespace:path/to/image.png scale=1.0 "Optional tooltip")
-
-Examples:
-
-[Diamond](item:minecraft:diamond scale=1.0 "A precious gem")  
-[Custom Texture](texture:yourmodid:textures/gui/icon.png scale=1.0 "Icon!")
-
-✅ These support tooltips when hovered over in-game.
+✅ Both support custom scale and tooltip.
 
 ---
 
 ## 🎨 Color Codes
 
-Mob Journal supports **Minecraft-style color codes** in descriptions using § formatting:
+Use color codes like `{red}`, `{gold}`, and style codes like `{bold}`, `{italic}`.
 
-| Code | Color       |
-|------|-------------|
-| §0   | Black       |
-| §1   | Dark Blue   |
-| §2   | Dark Green  |
-| §3   | Dark Aqua   |
-| §4   | Dark Red    |
-| §5   | Dark Purple |
-| §6   | Gold        |
-| §7   | Gray        |
-| §8   | Dark Gray   |
-| §9   | Blue        |
-| §a   | Green       |
-| §b   | Aqua        |
-| §c   | Red         |
-| §d   | Light Purple|
-| §e   | Yellow      |
-| §f   | White       |
+| Code             | Minecraft Color |
+|------------------|-----------------|
+| `{black}`        | §0              |
+| `{dark_blue}`    | §1              |
+| `{dark_green}`   | §2              |
+| `{dark_aqua}`    | §3              |
+| `{dark_red}`     | §4              |
+| `{dark_purple}`  | §5              |
+| `{gold}`         | §6              |
+| `{gray}`         | §7              |
+| `{dark_gray}`    | §8              |
+| `{blue}`         | §9              |
+| `{green}`        | §a              |
+| `{aqua}`         | §b              |
+| `{red}`          | §c              |
+| `{light_purple}` | §d              |
+| `{yellow}`       | §e              |
+| `{white}`        | §f              |
 
-You can also use inline codes like `{§a}` and it will be replaced with §a automatically.
+🎨 Use `{reset}` to clear formatting.
 
-Example:
-"{§c}Warning:{§r} This mob is dangerous!"
-
-✅ Note: Hex colors (#ffaa00) are not supported.
+❌ Hex colors (e.g. `#ffaa00`) are **not supported**.
 
 ---
 
-## 🧠 Fallback System
+## 🧠 Description Fallback System
 
-Mob Journal will fall back to:
+If a specific mob has no custom description, Mob Journal checks:
 
-1. `assets/journal/mobs_desc/<mod_namespace>/default.json`  
-   - Shared fallback for that mod
-2. `assets/journal/mobs_desc/journal/default.json`  
-   - Shared fallback for everything
-3. A hardcoded basic description and stat block
+1. `assets/journal/mobs_desc/<namespace>/default.json`
+2. `assets/journal/mobs_desc/journal/default.json`
+3. A hardcoded fallback description
 
 ---
 
 ## 🧪 Testing Tips
 
-- Press F3 + T to reload your resource pack and instantly refresh descriptions.
-- Descriptions are stored client-side and can be bundled with a resource pack.
+- Press **F3 + T** in-game to reload your resource pack and apply description changes.
+- Custom descriptions are **client-side** and can be included in:
+  - Resource packs
+  - Mods
+  - Modpacks
 
----
 
-📦 Great for modpacks  
-📖 Easy for storytellers  
-💾 Lightweight and customizable
+📦 **Perfect for modpacks**  
+📖 **Great for storytelling**  
+💾 **Lightweight, readable, and moddable**
+```
