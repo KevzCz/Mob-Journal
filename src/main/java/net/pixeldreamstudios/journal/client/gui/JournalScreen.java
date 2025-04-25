@@ -8,6 +8,7 @@ import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.render.entity.EntityRenderDispatcher;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.mob.BlazeEntity;
 import net.minecraft.registry.Registries;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
@@ -228,6 +229,7 @@ public class JournalScreen extends Screen {
 
 
     private void renderMobGrid(DrawContext context, int leftStartX, int startY, int mouseX, int mouseY) {
+        // ─── existing setup ───
         mobSlots.clear();
         renderFrameCounter = (renderFrameCounter + 1) % 3; // Only update pose every 3 frames
         boolean updatePose = renderFrameCounter == 0;
@@ -237,28 +239,38 @@ public class JournalScreen extends Screen {
         if (world == null || filteredMobs.isEmpty()) return;
 
         int startIndex = currentPage * 12;
-        int endIndex = Math.min(startIndex + 12, filteredMobs.size());
+        int endIndex   = Math.min(startIndex + 12, filteredMobs.size());
 
-        int columns = 2;
-        int spacingX = 60;
-        int spacingY = 45;
-        int baseScale = 8;
+        int columns    = 2;
+        int spacingX   = 60;
+        int spacingY   = 45;
+        int baseScale  = 8;
         int hoverScale = 11;
-        int boxWidth = 30;
-        int boxHeight = 40;
+        int boxWidth   = 30;
+        int boxHeight  = 40;
 
-        int leftPageStartX = leftStartX;
+        int leftPageStartX  = leftStartX;
         int rightPageStartX = leftPageStartX + 145;
 
         List<Nameplate> pendingNameplates = new ArrayList<>();
 
+        // ─── NEW: disable shadows once ───
+        EntityRenderDispatcher dispatcher = client.getEntityRenderDispatcher();
+        dispatcher.setRenderShadows(false);
+
+        // ─── NEW: push once for entire batch ───
+        MatrixStack matrices = context.getMatrices();
+        matrices.push();
+
+        // ─── draw each mob ───
         for (int i = startIndex; i < endIndex; i++) {
             Identifier id = filteredMobs.get(i);
             LivingEntity living = currentPageMobMap.computeIfAbsent(id, key -> {
                 var type = Registries.ENTITY_TYPE.get(key);
-                return (type != null && type.isSummonable()) ? (LivingEntity) type.create(world) : null;
+                return (type != null && type.isSummonable())
+                        ? (LivingEntity) type.create(world)
+                        : null;
             });
-
             if (living == null) continue;
 
             boolean isRightPage = (i - startIndex) >= 6;
@@ -269,51 +281,58 @@ public class JournalScreen extends Screen {
             int x = (isRightPage ? rightPageStartX : leftPageStartX) + col * spacingX;
             int y = startY + row * spacingY;
 
-            mobSlots.add(new MobSlot(id, x - 15, y - 20, 30, 40));
+            mobSlots.add(new MobSlot(id, x - 15, y - 20, boxWidth, boxHeight));
 
-            boolean isHovered = mouseX >= x - boxWidth / 2 && mouseX <= x + boxWidth / 2 &&
-                    mouseY >= y - boxHeight / 2 && mouseY <= y + boxHeight / 2;
-
+            boolean isHovered = mouseX >= x - boxWidth/2 && mouseX <= x + boxWidth/2
+                    && mouseY >= y - boxHeight/2 && mouseY <= y + boxHeight/2;
             if (isHovered) {
                 double pulse = Math.sin(System.currentTimeMillis() / 150.0) * 0.15 + 0.25;
                 int alpha = (int) (pulse * 255);
                 int color = (alpha << 24) | 0x55FF55;
-                context.fill(x - boxWidth / 2, y - boxHeight / 2, x + boxWidth / 2, y + boxHeight / 2, color);
+                context.fill(
+                        x - boxWidth/2, y - boxHeight/2,
+                        x + boxWidth/2, y + boxHeight/2,
+                        color
+                );
             }
 
             CachedPose pose = poseCache.computeIfAbsent(id, k -> new CachedPose());
             long now = System.currentTimeMillis();
             if (updatePose || now - pose.lastUpdated > 250) {
-                pose.limbPos = (now % 10000L) / 1000.0f * 3f;
-                pose.yaw = (now % 8000L) / 8000.0f * 360F;
-                pose.age = (int) (now / 50L);
+                pose.limbPos     = (now % 10000L) / 1000.0f * 3f;
+                pose.yaw         = (now % 8000L)  / 8000.0f * 360F;
+                pose.age         = (int)(now / 50L);
                 pose.lastUpdated = now;
             }
-
             ((LimbAnimatorAccessor) living.limbAnimator).setPos(pose.limbPos);
             living.limbAnimator.updateLimbs(0.35f, 1f);
             living.bodyYaw = pose.yaw;
             living.setYaw(pose.yaw);
             living.setPitch(0.0f);
             living.headYaw = pose.yaw;
-            living.age = pose.age;
-
-
+            living.age     = pose.age;
             int scale = isHovered ? hoverScale : baseScale;
+            // drawMob still handles only per-mob push/pop
             drawMob(context, x, y, scale, mouseX, mouseY, living);
+
             Nameplate plate = new Nameplate(
                     living.getDisplayName().getString(),
-                    x,
-                    y + scale + 10,
+                    x, y + scale + 10,
                     client.textRenderer
             );
             plate.hovered = isHovered;
             pendingNameplates.add(plate);
         }
 
-        // 🧠 Do all trimming and drawing after collecting
+        // ─── NEW: pop once after batch ───
+        matrices.pop();
+        // ─── NEW: restore shadows once ───
+        dispatcher.setRenderShadows(true);
+
+        // ─── existing nameplate draw ───
         drawNameplate(context, pendingNameplates, client.textRenderer);
     }
+
 
     private void drawNameplate(DrawContext context, List<Nameplate> plates, TextRenderer renderer) {
         boolean changed;
@@ -325,22 +344,34 @@ public class JournalScreen extends Screen {
                     Nameplate b = plates.get(j);
 
                     if (a.bounds.intersects(b.bounds)) {
-                        boolean trimmedA = false, trimmedB = false;
+                        boolean trimmed = false;
+                        int lenA = a.name.length();
+                        int lenB = b.name.length();
 
-                        if (a.name.length() > 3) {
+                        // 1) Trim the longer text first
+                        if (lenA > lenB && lenA > 3) {
                             a.trim();
                             a.bounds = a.calculateBounds(renderer);
-                            trimmedA = true;
-                        }
-
-                        if (b.name.length() > 3) {
+                            trimmed = true;
+                        } else if (lenB > lenA && lenB > 3) {
                             b.trim();
                             b.bounds = b.calculateBounds(renderer);
-                            trimmedB = true;
+                            trimmed = true;
+                        } else {
+                            // 2) If same length (or both candidates), trim both as before
+                            if (lenA > 3) {
+                                a.trim();
+                                a.bounds = a.calculateBounds(renderer);
+                                trimmed = true;
+                            }
+                            if (lenB > 3) {
+                                b.trim();
+                                b.bounds = b.calculateBounds(renderer);
+                                trimmed = true;
+                            }
                         }
 
-                        // Only loop again if something was actually trimmed
-                        if (trimmedA || trimmedB) {
+                        if (trimmed) {
                             changed = true;
                         }
                     }
@@ -348,7 +379,7 @@ public class JournalScreen extends Screen {
             }
         } while (changed);
 
-        // Render final nameplates
+        // now actually draw all nameplates
         for (Nameplate plate : plates) {
             MatrixStack matrices = context.getMatrices();
             matrices.push();
@@ -364,10 +395,10 @@ public class JournalScreen extends Screen {
                     0x000000,
                     false
             );
-
             matrices.pop();
         }
     }
+
 
 
 
@@ -376,14 +407,13 @@ public class JournalScreen extends Screen {
         MinecraftClient client = MinecraftClient.getInstance();
         EntityRenderDispatcher dispatcher = client.getEntityRenderDispatcher();
         MatrixStack matrices = context.getMatrices();
-
         matrices.push();
         matrices.translate(x, y, 100.0);
         matrices.scale(scale, -scale, scale);
         matrices.translate(0.0, -1.5, 0.0);
 
         try {
-            dispatcher.setRenderShadows(false);
+
             dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, 1.0f, matrices, context.getVertexConsumers(), 0xF000F0);
         } catch (Throwable t) {
             TextRenderer renderer = client.textRenderer;
@@ -396,7 +426,7 @@ public class JournalScreen extends Screen {
                     0xFF5555
             );
         } finally {
-            dispatcher.setRenderShadows(true);
+
             matrices.pop();
         }
     }

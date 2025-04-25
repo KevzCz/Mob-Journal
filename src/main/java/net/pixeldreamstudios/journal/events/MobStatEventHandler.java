@@ -1,16 +1,11 @@
 package net.pixeldreamstudios.journal.events;
 
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityCombatEvents;
-import net.fabricmc.fabric.api.event.player.UseEntityCallback;
-import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.ActionResult;
 import net.minecraft.util.Identifier;
 import net.pixeldreamstudios.journal.data.JournalComponents;
-import net.pixeldreamstudios.journal.data.MobStatTrackerComponent;
 
 public class MobStatEventHandler {
 

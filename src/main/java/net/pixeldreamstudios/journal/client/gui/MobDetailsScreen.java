@@ -1,4 +1,5 @@
 package net.pixeldreamstudios.journal.client.gui;
+
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
@@ -12,7 +13,6 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.map.MapState;
 import net.minecraft.item.tooltip.TooltipType;
-import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Style;
@@ -23,7 +23,6 @@ import net.pixeldreamstudios.journal.client.JournalClientData;
 import net.pixeldreamstudios.journal.network.RequestMobDropsPayload;
 import net.pixeldreamstudios.journal.util.MarkdownParser;
 import net.pixeldreamstudios.journal.util.MarkdownParser.ParsedLine;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -457,7 +456,7 @@ public class MobDetailsScreen extends Screen {
         MinecraftClient client = MinecraftClient.getInstance();
         EntityRenderDispatcher dispatcher = client.getEntityRenderDispatcher();
         MatrixStack matrices = context.getMatrices();
-
+        dispatcher.setRenderShadows(false);
         matrices.push();
         matrices.translate(x, y, 100.0);
         matrices.scale(scale, -scale, scale);
@@ -485,11 +484,11 @@ public class MobDetailsScreen extends Screen {
             entity.headYaw = pose.yaw;
             entity.age = pose.age;
 
-            dispatcher.setRenderShadows(false);
+
             dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, 1.0f, matrices, context.getVertexConsumers(), 0xF000F0);
 
         } catch (Throwable t) {
-            dispatcher.setRenderShadows(true);
+
             matrices.pop();
 
             TextRenderer renderer = client.textRenderer;
@@ -499,7 +498,7 @@ public class MobDetailsScreen extends Screen {
             context.drawTextWithShadow(renderer, Text.literal(errorText), x - textWidth / 2, y - 10, 0xFF5555);
             return;
         }
-
+        dispatcher.setRenderShadows(true);
         matrices.pop();
     }
 

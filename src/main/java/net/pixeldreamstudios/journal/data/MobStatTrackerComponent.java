@@ -6,8 +6,6 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
-import net.pixeldreamstudios.journal.data.JournalComponents;
-import net.pixeldreamstudios.journal.data.MobStat;
 import net.pixeldreamstudios.journal.network.SyncMobStatsPayload;
 import org.ladysnake.cca.api.v3.component.ComponentV3;
 import org.ladysnake.cca.api.v3.component.sync.AutoSyncedComponent;
