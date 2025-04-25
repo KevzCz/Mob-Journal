@@ -17,6 +17,5 @@ public class JournalPayload {
         PayloadTypeRegistry.playC2S().register(RequestMobDropsPayload.ID, RequestMobDropsPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(SyncJournalPayload.ID,     SyncJournalPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ClientReadyPayload.ID,     ClientReadyPayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(SetMobIdPayload.ID,        SetMobIdPayload.CODEC);
-    }
+        }
 }
