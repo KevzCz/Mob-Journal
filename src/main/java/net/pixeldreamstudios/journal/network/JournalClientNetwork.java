@@ -10,7 +10,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
-import net.pixeldreamstudios.journal.Journal;
 import net.pixeldreamstudios.journal.client.JournalClient;
 import net.pixeldreamstudios.journal.client.JournalClientData;
 import net.pixeldreamstudios.journal.client.MobUnlockTracker;
@@ -18,22 +17,41 @@ import net.pixeldreamstudios.journal.client.gui.JournalScreen;
 import net.pixeldreamstudios.journal.client.gui.MobDetailsScreen;
 import net.pixeldreamstudios.journal.client.toast.MobDiscoveredToast;
 import net.pixeldreamstudios.journal.item.JournalItems;
+import net.pixeldreamstudios.journal.util.MobEntityCache;
+
+import java.util.Map;
 
 public class JournalClientNetwork {
     public static void init() {
-        // Open-journal response
+        // Open-journal response (now carrying timestamps)
         ClientPlayNetworking.registerGlobalReceiver(SyncJournalPayload.ID, (payload, context) -> {
             MinecraftClient.getInstance().execute(() -> {
+                // clear old discoveries
                 JournalClientData.DISCOVERED.clear();
-                JournalClientData.DISCOVERED.addAll(payload.mobIds());
+                JournalClientData.DISCOVERED_TIME.clear();
+
+                // repopulate with id → timestamp
+                for (Map.Entry<Identifier, Long> e : payload.discoveries().entrySet()) {
+                    JournalClientData.DISCOVERED.add(e.getKey());
+                    JournalClientData.DISCOVERED_TIME.put(e.getKey(), e.getValue());
+                }
+
+                // preload every entity
+                MobEntityCache.preload(payload.discoveries().keySet(), MinecraftClient.getInstance().world);
+
+                // refresh GUI if it's open
                 if (MinecraftClient.getInstance().currentScreen instanceof JournalScreen screen) {
                     screen.updateDiscoveredMobs();
                 }
+
+                // reset your unlock-tracker
+                MobUnlockTracker.resetSentMobs();
+
                 // trigger screen open if requested
                 if (JournalClientData.shouldOpenJournalScreen) {
                     MinecraftClient.getInstance().player.playSound(
                             net.minecraft.sound.SoundEvents.ITEM_BOOK_PAGE_TURN,
-                            1f, 1f + (float)(Math.random()*0.2 - 0.1)
+                            1f, 1f + (float)(Math.random() * 0.2 - 0.1)
                     );
                     MinecraftClient.getInstance().setScreen(new JournalScreen());
                     JournalClientData.shouldOpenJournalScreen = false;
@@ -77,12 +95,12 @@ public class JournalClientNetwork {
             sender.sendPacket(ClientReadyPayload.INSTANCE);
         });
 
-
+        // Keybind & unlock-ticker
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (JournalClient.openJournalKey.wasPressed()) {
                 if (client.player != null && client.world != null) {
                     boolean hasJournal = client.player.getInventory()
-                            .contains(new ItemStack(JournalItems.JOURNAL_ITEM));  // ← use JournalItems.JOURNAL_ITEM
+                            .contains(new ItemStack(JournalItems.JOURNAL_ITEM));
                     if (hasJournal) {
                         JournalClientData.shouldOpenJournalScreen = true;
                         ClientPlayNetworking.send(OpenJournalPayload.INSTANCE);

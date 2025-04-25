@@ -23,6 +23,7 @@ import net.pixeldreamstudios.journal.client.JournalClientData;
 import net.pixeldreamstudios.journal.network.RequestMobDropsPayload;
 import net.pixeldreamstudios.journal.util.MarkdownParser;
 import net.pixeldreamstudios.journal.util.MarkdownParser.ParsedLine;
+import net.pixeldreamstudios.journal.util.MobEntityCache;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -127,12 +128,9 @@ public class MobDetailsScreen extends Screen {
         World world = MinecraftClient.getInstance().world;
 
         if (world != null) {
-            var type = net.minecraft.registry.Registries.ENTITY_TYPE.get(mobId);
-            if (type != null && type.isSummonable()) {
-                var entity = type.create(world);
-                if (entity instanceof LivingEntity living) {
-                    this.mob = living;
-                }
+            LivingEntity cached = MobEntityCache.get(mobId, world);
+            if (cached != null) {
+                this.mob = cached;
             }
         }
 
@@ -335,6 +333,17 @@ public class MobDetailsScreen extends Screen {
             int modWidth = renderer.getWidth(modName);
             context.drawText(renderer, modName, -(modWidth / 2), 0, 0x777777, false);
             matrices.pop();
+            Long ticks = JournalClientData.DISCOVERED_TIME.get(mobId);
+               if (ticks != null && ticks >= 0) {
+                        int day = (int)(ticks / 24000L);      // 1 day = 24 000 ticks
+                        String dayText = "Day " + day;
+                        matrices.push();
+                        matrices.translate(mobSlotX + mobSlotW/2, mobSlotY + mobSlotH + 10, 0);
+                        matrices.scale(0.7f, 0.7f, 1f);
+                        int dayWidth = renderer.getWidth(dayText);
+                        context.drawText(renderer, dayText, -dayWidth/2, 0, 0x777777, false);
+                        matrices.pop();
+                    }
             int yOffset = 0;
 
             for (List<ParsedLine> row : rows) {

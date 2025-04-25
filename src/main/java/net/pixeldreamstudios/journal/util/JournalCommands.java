@@ -21,9 +21,8 @@ import net.minecraft.entity.LivingEntity;
 import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
-import java.util.concurrent.CompletableFuture;
+import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class JournalCommands {
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess access) {
@@ -70,9 +69,10 @@ public class JournalCommands {
         var journal = JournalComponents.JOURNAL.get(player);
         journal.clearDiscovered();
 
-        ServerPlayNetworking.send(player, new SyncJournalPayload(List.of()));
+        // now send an empty map instead of an empty list
+        ServerPlayNetworking.send(player, new SyncJournalPayload(Collections.emptyMap()));
         context.getSource().sendFeedback(() ->
-                Text.literal("🗑️ Cleared all discovered mobs in the journal."), false);
+                Text.literal("Cleared all discovered mobs in the journal."), false);
         return 1;
     }
 
@@ -85,8 +85,9 @@ public class JournalCommands {
             context.getSource().sendFeedback(() ->
                     Text.literal("❌ Removed mob from journal: " + id), false);
 
+            // now send the full id→timestamp map
             ServerPlayNetworking.send(player,
-                    new SyncJournalPayload(journal.getDiscovered().stream().toList()));
+                    new SyncJournalPayload(journal.getDiscovered()));
 
             return 1;
         } else {
@@ -101,8 +102,9 @@ public class JournalCommands {
         ServerPlayerEntity player = context.getSource().getPlayer();
         var journal = JournalComponents.JOURNAL.get(player);
 
+        // switch from the old Set to your Map's keySet()
         return net.minecraft.command.CommandSource.suggestIdentifiers(
-                journal.getDiscovered().stream(), builder
+                journal.getDiscovered().keySet().stream(), builder
         );
     };
 }

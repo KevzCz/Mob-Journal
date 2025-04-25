@@ -56,7 +56,7 @@ public class MobDiscoveredToast implements Toast {
         // Sound
         if (!playedSound && startTime > 0L) {
             playedSound = true;
-            client.getSoundManager().play(PositionedSoundInstance.master(JournalSounds.WRITING, 1.0F));
+            client.getSoundManager().play(PositionedSoundInstance.master(JournalSounds.WRITING, 2.0F));
         }
 
         boolean right = JournalConfig.toastPosition == JournalConfig.ToastPosition.TOP_RIGHT ||

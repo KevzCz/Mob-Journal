@@ -4,11 +4,10 @@ import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
-import java.util.ArrayList;
 
-import java.util.List;
+import java.util.Map;
 
-public record SyncJournalPayload(List<Identifier> mobIds) implements CustomPayload {
+public record SyncJournalPayload(Map<Identifier, Long> discoveries) implements CustomPayload {
 
     public static final CustomPayload.Id<SyncJournalPayload> ID =
             new CustomPayload.Id<>(Identifier.of("journal", "sync_journal"));
@@ -17,14 +16,22 @@ public record SyncJournalPayload(List<Identifier> mobIds) implements CustomPaylo
             PacketCodec.of(SyncJournalPayload::write, SyncJournalPayload::read);
 
     public static SyncJournalPayload read(RegistryByteBuf buf) {
-        List<Identifier> mobIds = buf.readCollection(ArrayList::new, b -> b.readIdentifier());
-        return new SyncJournalPayload(mobIds);
+        int size = buf.readInt();
+        var map = new java.util.HashMap<Identifier, Long>(size);
+        for (int i = 0; i < size; i++) {
+            var id = buf.readIdentifier();
+            long t  = buf.readLong();
+            map.put(id, t);
+        }
+        return new SyncJournalPayload(map);
     }
 
-
-
     public void write(RegistryByteBuf buf) {
-        buf.writeCollection(mobIds, (buf2, id) -> ((RegistryByteBuf) buf2).writeIdentifier(id));
+        buf.writeInt(discoveries.size());
+        for (var e : discoveries.entrySet()) {
+            buf.writeIdentifier(e.getKey());
+            buf.writeLong(e.getValue());
+        }
     }
 
     @Override

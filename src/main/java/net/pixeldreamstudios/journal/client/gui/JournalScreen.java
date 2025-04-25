@@ -18,6 +18,7 @@ import net.pixeldreamstudios.journal.client.JournalClientData;
 import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.events.JournalSounds;
 import net.pixeldreamstudios.journal.mixin.LimbAnimatorAccessor;
+import net.pixeldreamstudios.journal.util.MobEntityCache;
 
 import java.awt.*;
 import java.util.*;
@@ -265,12 +266,7 @@ public class JournalScreen extends Screen {
         // ─── draw each mob ───
         for (int i = startIndex; i < endIndex; i++) {
             Identifier id = filteredMobs.get(i);
-            LivingEntity living = currentPageMobMap.computeIfAbsent(id, key -> {
-                var type = Registries.ENTITY_TYPE.get(key);
-                return (type != null && type.isSummonable())
-                        ? (LivingEntity) type.create(world)
-                        : null;
-            });
+            LivingEntity living = MobEntityCache.get(id, world);
             if (living == null) continue;
 
             boolean isRightPage = (i - startIndex) >= 6;
