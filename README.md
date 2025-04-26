@@ -75,6 +75,8 @@
 | `{getTimesKilled}` | Times the player has slain the mob     |
 | `{getTimesDiedTo}` | Times the mob has slain the player     |
 | `{namespace}`      | The namespace of the mob's ID          |
+| `{getTameable}`    | True / false                           |
+| `{getCategory}`    | Monster / Neutral / ...                |
 
 ---
 
