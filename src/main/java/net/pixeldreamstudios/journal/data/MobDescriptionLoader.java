@@ -3,6 +3,7 @@ package net.pixeldreamstudios.journal.data;
 import com.google.gson.*;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.passive.TameableEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.resource.Resource;
@@ -226,7 +227,15 @@ public class MobDescriptionLoader {
                 .replace("{path}", mobId.getPath());
 
         // Get client-side stats if present
-        var stat = net.pixeldreamstudios.journal.client.JournalClientData.MOB_STATS.getOrDefault(mobId, new net.pixeldreamstudios.journal.data.MobStat(0, 0));
+        var stat = JournalClientData.MOB_STATS.getOrDefault(mobId, new MobStat(0, 0));
+        // {getExperience}
+        // {getTameable}
+        boolean isTameable = mob instanceof TameableEntity;
+        result = result.replace("{getTameable}", isTameable ? "Yes" : "No");
+
+        // {getCategory}
+        String category = mob.getType().getSpawnGroup().asString(); // E.g., monster, creature, water_creature
+        result = result.replace("{getCategory}", capitalizeFirst(category));
 
         result = result
                 .replace("{getTimesKilled}", String.valueOf(stat.kills()))
@@ -235,20 +244,20 @@ public class MobDescriptionLoader {
         return result;
     }
 
+    private static String capitalizeFirst(String text) {
+        if (text == null || text.isEmpty()) return text;
+        return Character.toUpperCase(text.charAt(0)) + text.substring(1);
+    }
 
     private static List<List<ParsedLine>> injectLootDrops(List<List<ParsedLine>> lines) {
-        List<ParsedLine> dropIcons = getLootDropLines();
-
-        if (dropIcons.isEmpty()) {
-            dropIcons.add(new ParsedLine(Text.literal("§7(No known drops)")));
-        }
-
-        MarkdownParser.replacePlaceholder(lines, "{getLootDrops}", dropIcons);
+        List<ParsedLine> placeholder = List.of(new ParsedLine(Text.literal("§d{INJECT_LOOT_DROPS}")));
+        MarkdownParser.replacePlaceholder(lines, "{getLootDrops}", placeholder);
         return lines;
     }
 
     private static List<ParsedLine> getLootDropLines() {
         List<ParsedLine> dropIcons = new ArrayList<>();
+
         for (ItemStack stack : JournalClientData.LAST_DROPS) {
             if (!stack.isEmpty()) {
                 ParsedLine icon = new ParsedLine(stack);
@@ -256,6 +265,8 @@ public class MobDescriptionLoader {
                 dropIcons.add(icon);
             }
         }
+
         return dropIcons;
     }
+
 }

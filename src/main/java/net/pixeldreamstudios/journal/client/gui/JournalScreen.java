@@ -490,7 +490,18 @@ public class JournalScreen extends Screen {
         context.drawTexture(LEFT_PAGE, x + pageWidth / 2 + 118, y, 0, 0, pageWidth, pageHeight);
         searchBox.render(context, mouseX, mouseY, delta);
 
-        renderMobGrid(context, x + 176, y + 38, mouseX, mouseY);
+        if (filteredMobs.isEmpty()) {
+            TextRenderer renderer = MinecraftClient.getInstance().textRenderer;
+            String message = "No discovered mobs";
+
+            int messageWidth = renderer.getWidth(message);
+            int messageX = this.width / 2 - messageWidth / 2 - 75;
+            int messageY = this.height / 2 - 70;
+
+            context.drawText(renderer, message, messageX, messageY, 0x888888, false);
+        } else {
+            renderMobGrid(context, x + 176, y + 38, mouseX, mouseY);
+        }
         context.draw();
         nextButton.render(context, mouseX, mouseY);
         backButton.render(context, mouseX, mouseY);

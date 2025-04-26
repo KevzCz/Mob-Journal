@@ -10,6 +10,7 @@ public class JournalPayload {
         PayloadTypeRegistry.playS2C().register(SyncMobStatsPayload.ID,    SyncMobStatsPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(DiscoveredMobToastPayload.ID, DiscoveredMobToastPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(SyncMobDropsPayload.ID,    SyncMobDropsPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(DiscoveredMobPayload.ID, DiscoveredMobPayload.CODEC);
 
         // ─── Serverbound (C2S) ───
         PayloadTypeRegistry.playC2S().register(OpenJournalPayload.ID,      OpenJournalPayload.CODEC);

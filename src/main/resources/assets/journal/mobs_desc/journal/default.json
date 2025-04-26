@@ -3,6 +3,8 @@
     "## {mobName}",
     "**Health:** {getHealth}",
     "**Armor:** {getArmor}",
+    "**Category:** {getCategory}",
+    "**Tameable:** {getTameable}",
     "**Kills:** {getTimesKilled}",
     "**Deaths:** {getTimesDiedTo}",
     "## Drops",

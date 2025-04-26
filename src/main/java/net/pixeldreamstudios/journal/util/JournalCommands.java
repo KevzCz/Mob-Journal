@@ -38,31 +38,35 @@ public class JournalCommands {
                                 .executes(JournalCommands::removeMob)))
         );
     }
-
     private static int unlockAll(CommandContext<ServerCommandSource> context) {
-        var player = context.getSource().getPlayer();
+        ServerPlayerEntity player = context.getSource().getPlayer();
         var journal = JournalComponents.JOURNAL.get(player);
-        int count = 0;
 
-        for (var entry : Registries.ENTITY_TYPE.getIds()) {
-            var type = Registries.ENTITY_TYPE.get(entry);
-            if (type == null || !type.isSummonable()) continue;
+        int unlocked = 0;
+
+        for (var type : Registries.ENTITY_TYPE) {
+            if (!type.isSummonable()) continue;
 
             var entity = type.create(player.getWorld());
-            if (!(entity instanceof LivingEntity)) continue;
+            if (!(entity instanceof LivingEntity)) continue; // <-- 💥 skip if not a mob
 
-            if (JournalConfig.isBlacklisted(entry)) continue;
+            Identifier id = Registries.ENTITY_TYPE.getId(type);
+            if (JournalConfig.isBlacklisted(id)) continue;
 
-            if (journal.unlockMob(entry)) {
-                count++;
+            if (journal.unlockMob(id)) {
+                unlocked++;
             }
         }
 
-        int finalCount = count;
+        ServerPlayNetworking.send(player, new SyncJournalPayload(journal.getDiscovered()));
+
+        int finalUnlocked = unlocked;
         context.getSource().sendFeedback(() ->
-                Text.literal("✅ Unlocked " + finalCount + " mobs in the journal."), false);
-        return count;
+                Text.literal("✅ Unlocked " + finalUnlocked + " mobs in the journal."), false);
+
+        return unlocked;
     }
+
 
     private static int clearAll(CommandContext<ServerCommandSource> context) {
         var player = context.getSource().getPlayer();

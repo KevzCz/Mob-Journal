@@ -58,6 +58,16 @@ public class JournalClientNetwork {
                 }
             });
         });
+        ClientPlayNetworking.registerGlobalReceiver(DiscoveredMobPayload.ID, (payload, context) -> {
+            MinecraftClient.getInstance().execute(() -> {
+                JournalClientData.DISCOVERED.add(payload.mobId());
+                JournalClientData.DISCOVERED_TIME.put(payload.mobId(), payload.timestamp());
+
+                if (MinecraftClient.getInstance().currentScreen instanceof JournalScreen screen) {
+                    screen.updateDiscoveredMobs();
+                }
+            });
+        });
 
         // Mob-drops response
         ClientPlayNetworking.registerGlobalReceiver(SyncMobDropsPayload.ID, (payload, context) -> {

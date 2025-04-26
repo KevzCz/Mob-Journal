@@ -8,6 +8,7 @@ import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import net.pixeldreamstudios.journal.config.JournalConfig;
+import net.pixeldreamstudios.journal.network.DiscoveredMobPayload;
 import net.pixeldreamstudios.journal.network.SyncJournalPayload;
 import org.ladysnake.cca.api.v3.component.ComponentV3;
 import org.ladysnake.cca.api.v3.component.sync.AutoSyncedComponent;
@@ -34,16 +35,20 @@ public class JournalComponent implements ComponentV3, AutoSyncedComponent, Respa
      * Unlocks the mob and, if enabled, records the current server time.
      */
     public boolean unlockMob(Identifier id) {
-        if (discovered.containsKey(id)) return false;
+        if (id == null || discovered.containsKey(id)) return false;
+
         long timestamp = JournalConfig.recordDiscoveryTimestamp
                 ? owner.server.getOverworld().getTime()
                 : -1L;
         discovered.put(id, timestamp);
+
         if (isServerSide()) {
-            ServerPlayNetworking.send(owner, new SyncJournalPayload(discovered));
+            ServerPlayNetworking.send(owner, new DiscoveredMobPayload(id, timestamp)); // NEW
         }
+
         return true;
     }
+
 
     private boolean hasReceivedJournal = false;
 

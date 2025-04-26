@@ -34,9 +34,10 @@ public class MobDetailsScreen extends Screen {
     private static final Identifier LEFT_PAGE = Identifier.of("journal", "textures/book.png");
     private static final Identifier RIGHT_PAGE = Identifier.of("journal", "textures/book_flipped.png");
     private final int returnPage;
+
     private final Identifier mobId;
     private LivingEntity mob;
-
+    private boolean expandSymbolDrawn = false;
     private PageTurnButton backButton;
     private DetailPageTurnButton nextButton;
     private DetailPageTurnButton backDescButton;
@@ -45,10 +46,14 @@ public class MobDetailsScreen extends Screen {
     private List<List<List<ParsedLine>>> paginatedLines = new ArrayList<>();
     private final String returnQuery;
     private final int mobSlotW = 120, mobSlotH = 140;
-    private final int descSlotW = 110, descSlotH = 120;
+    private final int descSlotW = 110, descSlotH = 130;
     private final Map<Identifier, CachedPose> poseCache = new java.util.HashMap<>();
     private int renderFrameCounter = 0;
-
+    private boolean showAllDrops = false;
+    private int expandButtonX = -1;
+    private int expandButtonY = -1;
+    private int expandButtonWidth = -1;
+    private int expandButtonHeight = -1;
     private static class CachedPose {
         float limbPos, yaw;
         int age;
@@ -91,25 +96,39 @@ public class MobDetailsScreen extends Screen {
                 ? net.pixeldreamstudios.journal.data.MobDescriptionLoader.getDescription(mobId, mob)
                 : List.of(List.of(new ParsedLine(Text.literal("§cUnknown mob"))));
 
-        if (MarkdownParser.containsPlaceholder(allLines, "{getLootDrops}")) {
-            List<ParsedLine> dropIcons = new ArrayList<>();
-            for (ItemStack stack : JournalClientData.LAST_DROPS) {
-                ParsedLine icon = new ParsedLine(stack);
-                icon.scale = 1.0f;
-                dropIcons.add(icon);
-            }
+        List<ParsedLine> dropIcons = new ArrayList<>();
 
-            if (dropIcons.isEmpty()) {
-                dropIcons.add(new ParsedLine(Text.literal("§7(No known drops)")));
-            }
+        int maxDrops = showAllDrops ? JournalClientData.LAST_DROPS.size() : Math.min(6, JournalClientData.LAST_DROPS.size());
+        for (int i = 0; i < maxDrops; i++) {
+            ItemStack stack = JournalClientData.LAST_DROPS.get(i);
+            ParsedLine icon = new ParsedLine(stack);
+            icon.scale = 1.0f;
+            dropIcons.add(icon);
+        }
 
-            MarkdownParser.replacePlaceholder(allLines, "{getLootDrops}", dropIcons);
+        if (dropIcons.isEmpty()) {
+            dropIcons.add(new ParsedLine(Text.literal("§7(No known drops)")));
+        }
+
+        // Replace placeholder text {INJECT_LOOT_DROPS} with the actual icons
+        for (List<ParsedLine> line : allLines) {
+            for (int i = 0; i < line.size(); i++) {
+                ParsedLine part = line.get(i);
+                if (part.isText() && part.text.getString().contains("{INJECT_LOOT_DROPS}")) {
+                    line.remove(i);
+                    line.addAll(i, dropIcons);
+                    break;
+                }
+            }
         }
 
         this.descPage = 0;
         paginateDescription(allLines);
         updatePageButtons();
     }
+
+
+
     private String formatModName(String namespace) {
         String[] parts = namespace.split("_");
         StringBuilder builder = new StringBuilder();
@@ -171,7 +190,6 @@ public class MobDetailsScreen extends Screen {
         });
 
 
-
         backDescButton = new DetailPageTurnButton(x + 385, buttonY, false, () -> {
             descPage--;
             updatePageButtons();
@@ -196,56 +214,40 @@ public class MobDetailsScreen extends Screen {
 
         List<List<ParsedLine>> currentPage = new ArrayList<>();
         int currentHeight = 0;
+        boolean insideLootSection = false;
 
-        for (List<ParsedLine> inputRow : lines) {
+        for (int rowIndex = 0; rowIndex < lines.size(); rowIndex++) {
+            List<ParsedLine> inputRow = lines.get(rowIndex);
+
+            boolean rowIsLoot = inputRow.stream().anyMatch(part ->
+                    part.isItem() && JournalClientData.LAST_DROPS.stream()
+                            .anyMatch(stack -> ItemStack.areItemsAndComponentsEqual(stack, part.item))
+            );
+
+            // Detect start of loot section
+            if (inputRow.stream().anyMatch(p -> p.isText() && p.text.getString().replace("§", "").equalsIgnoreCase("Drops"))) {
+                insideLootSection = true;
+            }
+
             List<ParsedLine> currentLine = new ArrayList<>();
             int currentLineWidth = 0;
             int currentLineHeight = 0;
 
             for (ParsedLine part : inputRow) {
                 float scale = part.scale <= 0 ? 1.0f : part.scale;
-
-                if (part.isText()) {
-                    List<Text> wrappedLines = splitText(part.text, wrapWidth, renderer);
-
-                    for (Text wrappedText : wrappedLines) {
-                        int width = renderer.getWidth(wrappedText);
-                        int height = renderer.fontHeight;
-
-                        if (currentLineWidth + width > wrapWidth && !currentLine.isEmpty()) {
-                            currentPage.add(currentLine);
-                            currentHeight += currentLineHeight + 4;
-                            currentLine = new ArrayList<>();
-                            currentLineWidth = 0;
-                            currentLineHeight = 0;
-                        }
-
-                        ParsedLine wrappedPart = new ParsedLine(wrappedText);
-                        wrappedPart.tooltip = part.tooltip;
-                        wrappedPart.scale = part.scale;
-
-                        currentLine.add(wrappedPart);
-                        currentLineWidth += width + 2;
-                        currentLineHeight = Math.max(currentLineHeight, height);
-
-                        if (currentHeight + currentLineHeight >= maxHeight) {
-                            currentPage.add(currentLine);
-                            paginatedLines.add(currentPage);
-                            currentPage = new ArrayList<>();
-                            currentLine = new ArrayList<>();
-                            currentHeight = 0;
-                            currentLineWidth = 0;
-                            currentLineHeight = 0;
-                        }
-                    }
-
-                    continue;
-                }
-
-                int width = (int) (16 * scale);
-                int height = (int) (16 * scale);
+                int width = part.isText()
+                        ? renderer.getWidth(part.text)
+                        : (int) (16 * scale);
+                int height = part.isText()
+                        ? renderer.fontHeight
+                        : (int) (16 * scale);
 
                 if (currentLineWidth + width > wrapWidth && !currentLine.isEmpty()) {
+                    if (currentHeight + currentLineHeight > maxHeight) {
+                        paginatedLines.add(currentPage);
+                        currentPage = new ArrayList<>();
+                        currentHeight = 0;
+                    }
                     currentPage.add(currentLine);
                     currentHeight += currentLineHeight + 4;
                     currentLine = new ArrayList<>();
@@ -256,27 +258,37 @@ public class MobDetailsScreen extends Screen {
                 currentLine.add(part);
                 currentLineWidth += width + 2;
                 currentLineHeight = Math.max(currentLineHeight, height);
-
-                if (currentHeight + currentLineHeight >= maxHeight) {
-                    currentPage.add(currentLine);
-                    paginatedLines.add(currentPage);
-                    currentPage = new ArrayList<>();
-                    currentLine = new ArrayList<>();
-                    currentHeight = 0;
-                    currentLineWidth = 0;
-                    currentLineHeight = 0;
-                }
             }
 
             if (!currentLine.isEmpty()) {
+                if (currentHeight + currentLineHeight > maxHeight && !currentPage.isEmpty()) {
+                    paginatedLines.add(currentPage);
+                    currentPage = new ArrayList<>();
+                    currentHeight = 0;
+                }
                 currentPage.add(currentLine);
                 currentHeight += currentLineHeight + 4;
             }
 
-            if (currentHeight >= maxHeight) {
-                paginatedLines.add(currentPage);
-                currentPage = new ArrayList<>();
-                currentHeight = 0;
+            // If we just finished a loot row and next isn't loot (or no next row)
+            boolean nextRowIsNotLoot = (rowIndex + 1 >= lines.size()) ||
+                    (lines.get(rowIndex + 1).stream().noneMatch(p -> p.isItem()));
+
+            if (insideLootSection && rowIsLoot && nextRowIsNotLoot) {
+                if (JournalClientData.LAST_DROPS.size() > 5) {
+                    // Inject expand/collapse button
+                    ParsedLine expandButton = new ParsedLine(Text.literal("{EXPAND_COLLAPSE}"));
+                    List<ParsedLine> expandRow = List.of(expandButton);
+
+                    if (currentHeight + renderer.fontHeight > maxHeight && !currentPage.isEmpty()) {
+                        paginatedLines.add(currentPage);
+                        currentPage = new ArrayList<>();
+                        currentHeight = 0;
+                    }
+                    currentPage.add(expandRow);
+                    currentHeight += renderer.fontHeight + 4;
+                }
+                insideLootSection = false; // Only once
             }
         }
 
@@ -289,6 +301,8 @@ public class MobDetailsScreen extends Screen {
         }
     }
 
+
+
     private void updatePageButtons() {
         backDescButton.visible = descPage > 0;
         nextButton.visible = descPage < paginatedLines.size() - 1;
@@ -299,6 +313,16 @@ public class MobDetailsScreen extends Screen {
         backButton.mouseClicked(mouseX, mouseY);
         backDescButton.mouseClicked(mouseX, mouseY);
         nextButton.mouseClicked(mouseX, mouseY);
+        // Check if click is inside the expand button bounds
+        if (expandButtonX >= 0 && expandButtonY >= 0) {
+            if (mouseX >= expandButtonX && mouseX <= expandButtonX + expandButtonWidth &&
+                    mouseY >= expandButtonY && mouseY <= expandButtonY + expandButtonHeight) {
+                showAllDrops = !showAllDrops;
+                rebuildWithDrops();
+                return true; // handled click
+            }
+        }
+
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
@@ -320,6 +344,8 @@ public class MobDetailsScreen extends Screen {
         int descSlotX = baseX + pageWidth / 2 + 150;
         int descSlotY = baseY + 20;
 
+        expandSymbolDrawn = false;
+
         if (mob != null) {
             drawMob(context, mobSlotX + mobSlotW / 2, mobSlotY + mobSlotH / 2 + 5, 30, mouseX, mouseY, mob);
 
@@ -327,24 +353,28 @@ public class MobDetailsScreen extends Screen {
             TextRenderer renderer = MinecraftClient.getInstance().textRenderer;
             String modName = formatModName(mobId.getNamespace());
             MatrixStack matrices = context.getMatrices();
+
             matrices.push();
             matrices.translate(mobSlotX + mobSlotW / 2, mobSlotY + mobSlotH - 5, 0);
             matrices.scale(0.7f, 0.7f, 1.0f);
             int modWidth = renderer.getWidth(modName);
             context.drawText(renderer, modName, -(modWidth / 2), 0, 0x777777, false);
             matrices.pop();
+
             Long ticks = JournalClientData.DISCOVERED_TIME.get(mobId);
-               if (ticks != null && ticks >= 0) {
-                        int day = (int)(ticks / 24000L);      // 1 day = 24 000 ticks
-                        String dayText = "Day " + day;
-                        matrices.push();
-                        matrices.translate(mobSlotX + mobSlotW/2, mobSlotY + mobSlotH + 10, 0);
-                        matrices.scale(0.7f, 0.7f, 1f);
-                        int dayWidth = renderer.getWidth(dayText);
-                        context.drawText(renderer, dayText, -dayWidth/2, 0, 0x777777, false);
-                        matrices.pop();
-                    }
+            if (ticks != null && ticks >= 0) {
+                int day = (int) (ticks / 24000L);
+                String dayText = "Day " + day;
+                matrices.push();
+                matrices.translate(mobSlotX + mobSlotW / 2, mobSlotY + mobSlotH + 10, 0);
+                matrices.scale(0.7f, 0.7f, 1f);
+                int dayWidth = renderer.getWidth(dayText);
+                context.drawText(renderer, dayText, -dayWidth / 2, 0, 0x777777, false);
+                matrices.pop();
+            }
+
             int yOffset = 0;
+            boolean insideLootSection = false;
 
             for (List<ParsedLine> row : rows) {
                 int xOffset = 0;
@@ -356,13 +386,37 @@ public class MobDetailsScreen extends Screen {
                     int drawY = descSlotY + yOffset;
 
                     if (part.isText()) {
+                        String raw = part.text.getString();
+
+                        if (raw.equalsIgnoreCase("Drops")) {
+                            insideLootSection = true;
+                        }
+
+                        if (raw.equals("{EXPAND_COLLAPSE}")) {
+                            String expandSymbol = showAllDrops ? "<< Collapse" : ">> Expand";
+                            int symbolWidth = renderer.getWidth(expandSymbol);
+
+                            matrices.push();
+                            matrices.translate(drawX, drawY, 0);
+                            context.drawText(renderer, expandSymbol, 0, 0, 0x777777, false);
+                            matrices.pop();
+
+                            expandButtonX = drawX;
+                            expandButtonY = drawY;
+                            expandButtonWidth = symbolWidth;
+                            expandButtonHeight = renderer.fontHeight;
+
+                            lineHeight = renderer.fontHeight;
+                            continue;
+                        }
+
                         int width = renderer.getWidth(part.text);
                         int height = renderer.fontHeight;
 
-                        context.getMatrices().push();
-                        context.getMatrices().translate(drawX, drawY, 0);
+                        matrices.push();
+                        matrices.translate(drawX, drawY, 0);
                         context.drawText(renderer, part.text, 0, 0, 0x535c55, false);
-                        context.getMatrices().pop();
+                        matrices.pop();
 
                         if (part.hasTooltip() &&
                                 mouseX >= drawX && mouseX <= drawX + width &&
@@ -377,18 +431,17 @@ public class MobDetailsScreen extends Screen {
                     } else if (part.isItem()) {
                         int iconSize = (int) (16 * scale);
 
-                        context.getMatrices().push();
-                        context.getMatrices().translate(drawX, drawY, 0);
-                        context.getMatrices().scale(scale, scale, 1.0f);
+                        matrices.push();
+                        matrices.translate(drawX, drawY, 0);
+                        matrices.scale(scale, scale, 1.0f);
                         context.drawItem(part.item, 0, 0);
                         context.drawItemInSlot(renderer, part.item, 0, 0);
-                        context.getMatrices().pop();
+                        matrices.pop();
 
                         if (mouseX >= drawX && mouseX <= drawX + iconSize &&
                                 mouseY >= drawY && mouseY <= drawY + iconSize) {
                             List<Text> tooltip = getEffectiveTooltip(part, part.item, mouseX, mouseY);
                             context.drawTooltip(renderer, tooltip, mouseX, mouseY);
-
                         }
 
                         xOffset += iconSize + 2;
@@ -396,6 +449,7 @@ public class MobDetailsScreen extends Screen {
 
                     } else if (part.isTexture()) {
                         int texSize = (int) (16 * scale);
+
                         context.drawTexture(part.texture, drawX, drawY, 0, 0, texSize, texSize, 16, 16);
 
                         if (mouseX >= drawX && mouseX <= drawX + texSize &&
@@ -409,17 +463,21 @@ public class MobDetailsScreen extends Screen {
                         lineHeight = Math.max(lineHeight, texSize);
                     }
                 }
-
                 yOffset += lineHeight + 4;
             }
         }
-
 
         backButton.render(context, mouseX, mouseY);
         backDescButton.render(context, mouseX, mouseY);
         nextButton.render(context, mouseX, mouseY);
         context.draw();
     }
+
+
+
+
+
+
 
     // At the top of the class
     private final Map<LivingEntity, Boolean> animatedEntities = new WeakHashMap<>();

@@ -77,18 +77,24 @@ public class JournalConfig {
 
     private static void saveDefault() {
         ConfigData def = new ConfigData();
-        def.blacklisted_mobs             = List.of("examplemod:badmob","examplenamespace:*");
-        def.toast_position               = "top_right";
-        def.record_discovery_timestamp   = recordDiscoveryTimestamp;
-        def.show_discovery_date          = showDiscoveryDate;
-        def.mob_check_interval           = mobCheckInterval;
-        def.mob_check_radius             = mobCheckRadius;
+        def.blacklisted_mobs = List.of(
+                "minecraft:armor_stand",   // ← Added this line
+                "examplemod:badmob",
+                "examplenamespace:*"
+        );
+        def.toast_position = "top_right";
+        def.record_discovery_timestamp = recordDiscoveryTimestamp;
+        def.show_discovery_date = showDiscoveryDate;
+        def.mob_check_interval = mobCheckInterval;
+        def.mob_check_radius = mobCheckRadius;
+
         try (FileWriter writer = new FileWriter(CONFIG_FILE)) {
             GSON.toJson(def, writer);
         } catch (Exception e) {
             System.err.println("[Journal] Failed to save default config: " + e);
         }
     }
+
 
     private static class ConfigData {
         public List<String> blacklisted_mobs;

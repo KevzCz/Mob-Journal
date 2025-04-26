@@ -9,10 +9,8 @@ import net.pixeldreamstudios.journal.client.toast.CustomToastManager;
 import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.network.JournalClientNetwork;
 import org.lwjgl.glfw.GLFW;
-
 public class JournalClient implements ClientModInitializer {
     public static KeyBinding openJournalKey;
-
 
     @Override
     public void onInitializeClient() {
@@ -26,6 +24,11 @@ public class JournalClient implements ClientModInitializer {
         JournalClientNetwork.init();
         JournalConfig.load();
         HudRenderCallback.EVENT.register((context, tickDelta) -> CustomToastManager.render(context));
+
+
+
+
+
 
 
     }
