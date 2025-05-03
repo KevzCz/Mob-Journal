@@ -25,11 +25,5 @@ public class JournalClient implements ClientModInitializer {
         JournalConfig.load();
         HudRenderCallback.EVENT.register((context, tickDelta) -> CustomToastManager.render(context));
 
-
-
-
-
-
-
     }
 }

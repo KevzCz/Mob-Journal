@@ -1,4 +1,3 @@
-// src/main/java/net/pixeldreamstudios/journal/JournalNetwork.java
 package net.pixeldreamstudios.journal.network;
 
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -11,6 +10,7 @@ public class JournalPayload {
         PayloadTypeRegistry.playS2C().register(DiscoveredMobToastPayload.ID, DiscoveredMobToastPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(SyncMobDropsPayload.ID,    SyncMobDropsPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(DiscoveredMobPayload.ID, DiscoveredMobPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(SyncFavoritesPayload.ID, SyncFavoritesPayload.CODEC);
 
         // ─── Serverbound (C2S) ───
         PayloadTypeRegistry.playC2S().register(OpenJournalPayload.ID,      OpenJournalPayload.CODEC);
@@ -18,5 +18,7 @@ public class JournalPayload {
         PayloadTypeRegistry.playC2S().register(RequestMobDropsPayload.ID, RequestMobDropsPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(SyncJournalPayload.ID,     SyncJournalPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ClientReadyPayload.ID,     ClientReadyPayload.CODEC);
-        }
+        PayloadTypeRegistry.playC2S().register(ToggleFavoritePayload.ID, ToggleFavoritePayload.CODEC);
+
+    }
 }

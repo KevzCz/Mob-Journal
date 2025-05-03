@@ -1,4 +1,3 @@
-// src/main/java/net/pixeldreamstudios/journal/client/JournalClientNetwork.java
 package net.pixeldreamstudios.journal.network;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -17,6 +16,7 @@ import net.pixeldreamstudios.journal.client.gui.JournalScreen;
 import net.pixeldreamstudios.journal.client.gui.MobDetailsScreen;
 import net.pixeldreamstudios.journal.client.toast.MobDiscoveredToast;
 import net.pixeldreamstudios.journal.item.JournalItems;
+import net.pixeldreamstudios.journal.network.SyncJournalPayload;
 import net.pixeldreamstudios.journal.util.MobEntityCache;
 
 import java.util.Map;
@@ -103,6 +103,16 @@ public class JournalClientNetwork {
         // Send “I’m ready” on join
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             sender.sendPacket(ClientReadyPayload.INSTANCE);
+        });
+        ClientPlayNetworking.registerGlobalReceiver(SyncFavoritesPayload.ID, (payload, context) -> {
+            MinecraftClient.getInstance().execute(() -> {
+                JournalClientData.FAVORITE_MOBS.clear();
+                JournalClientData.FAVORITE_MOBS.addAll(payload.favoriteMobs());
+
+                if (MinecraftClient.getInstance().currentScreen instanceof JournalScreen screen) {
+                    screen.updateDiscoveredMobs(); // update sort order if affected
+                }
+            });
         });
 
         // Keybind & unlock-ticker

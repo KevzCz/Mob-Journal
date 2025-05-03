@@ -1,4 +1,3 @@
-// src/main/java/net/pixeldreamstudios/journal/JournalNetwork.java
 package net.pixeldreamstudios.journal.network;
 
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -8,6 +7,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.entity.LivingEntity;
 import net.pixeldreamstudios.journal.config.JournalConfig;
+import net.pixeldreamstudios.journal.data.FavoriteMobsComponent;
 import net.pixeldreamstudios.journal.data.JournalComponents;
 import net.pixeldreamstudios.journal.events.MobStatEventHandler;
 import net.pixeldreamstudios.journal.item.JournalItems;
@@ -42,7 +42,12 @@ public class JournalNetwork {
                 journal.setReceivedJournal(true);
             }
             journal.removeBlacklistedMobs();
+
+            // ✅ NEW: sync favorites on join
+            var favorites = JournalComponents.FAVORITES.get(player);
+            ServerPlayNetworking.send(player, new SyncFavoritesPayload(favorites.getFavorites()));
         });
+
 
         // ─── Client-ready sync ───
         ServerPlayNetworking.registerGlobalReceiver(ClientReadyPayload.ID, (payload, context) -> {
@@ -81,6 +86,15 @@ public class JournalNetwork {
                     ServerPlayNetworking.send(player, new SyncMobDropsPayload(drops));
                 }
             }
+        });
+
+        ServerPlayNetworking.registerGlobalReceiver(ToggleFavoritePayload.ID, (payload, context) -> {
+            ServerPlayerEntity player = context.player();
+            FavoriteMobsComponent comp = JournalComponents.FAVORITES.get(player);
+            comp.toggleFavorite(payload.mobId(), payload.favorited());
+
+            // Optional: sync to client
+            ServerPlayNetworking.send(player, new SyncFavoritesPayload(comp.getFavorites()));
         });
     }
 }

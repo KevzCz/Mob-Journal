@@ -12,4 +12,6 @@ public class JournalClientData {
     public static List<ItemStack> LAST_DROPS = new ArrayList<>();
     public static final Map<Identifier, Long> DISCOVERED_TIME = new LinkedHashMap<>();
     public static boolean shouldOpenJournalScreen = false;
+    public static final Set<Identifier> FAVORITE_MOBS = new HashSet<>();
+
 }

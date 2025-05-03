@@ -5,6 +5,8 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.tooltip.Tooltip;
+import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.render.entity.EntityRenderDispatcher;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.component.type.MapIdComponent;
@@ -21,6 +23,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.world.World;
 import net.pixeldreamstudios.journal.client.JournalClientData;
 import net.pixeldreamstudios.journal.network.RequestMobDropsPayload;
+import net.pixeldreamstudios.journal.network.ToggleFavoritePayload;
 import net.pixeldreamstudios.journal.util.MarkdownParser;
 import net.pixeldreamstudios.journal.util.MarkdownParser.ParsedLine;
 import net.pixeldreamstudios.journal.util.MobEntityCache;
@@ -34,7 +37,8 @@ public class MobDetailsScreen extends Screen {
     private static final Identifier LEFT_PAGE = Identifier.of("journal", "textures/book.png");
     private static final Identifier RIGHT_PAGE = Identifier.of("journal", "textures/book_flipped.png");
     private final int returnPage;
-
+    private boolean isFavorite;
+    private ButtonWidget favButton;
     private final Identifier mobId;
     private LivingEntity mob;
     private boolean expandSymbolDrawn = false;
@@ -67,30 +71,6 @@ public class MobDetailsScreen extends Screen {
     }
 
 
-    private List<Text> splitText(Text input, int maxWidth, TextRenderer renderer) {
-        List<Text> result = new ArrayList<>();
-        String[] words = input.getString().split(" ");
-        StringBuilder line = new StringBuilder();
-        Style currentStyle = input.getStyle();
-
-        for (String word : words) {
-            String test = line.length() == 0 ? word : line + " " + word;
-            int width = renderer.getWidth(test);
-            if (width > maxWidth && line.length() > 0) {
-                result.add(Text.literal(line.toString()).setStyle(currentStyle));
-                line = new StringBuilder(word);
-            } else {
-                if (line.length() > 0) line.append(" ");
-                line.append(word);
-            }
-        }
-
-        if (line.length() > 0) {
-            result.add(Text.literal(line.toString()).setStyle(currentStyle));
-        }
-
-        return result;
-    }
     public void rebuildWithDrops() {
         List<List<ParsedLine>> allLines = mob != null
                 ? net.pixeldreamstudios.journal.data.MobDescriptionLoader.getDescription(mobId, mob)
@@ -145,6 +125,7 @@ public class MobDetailsScreen extends Screen {
     @Override
     protected void init() {
         World world = MinecraftClient.getInstance().world;
+        this.isFavorite = JournalClientData.FAVORITE_MOBS.contains(mobId);
 
         if (world != null) {
             LivingEntity cached = MobEntityCache.get(mobId, world);
@@ -152,6 +133,8 @@ public class MobDetailsScreen extends Screen {
                 this.mob = cached;
             }
         }
+
+
 
         JournalClientData.LAST_DROPS.clear();
         ClientPlayNetworking.send(new RequestMobDropsPayload(mobId));
@@ -183,6 +166,20 @@ public class MobDetailsScreen extends Screen {
         int totalWidth = pageWidth * 2;
         int x = (this.width - totalWidth) / 2;
         int y = (this.height - pageHeight) / 2;
+        int mobSlotX = x + 145;
+        int mobSlotY = y + 5;
+
+        this.favButton = ButtonWidget.builder(
+                Text.literal(isFavorite ? "★" : "☆").styled(style -> style.withColor(0xFFFF55)),
+                btn -> {
+                    isFavorite = !isFavorite;
+                    ClientPlayNetworking.send(new ToggleFavoritePayload(mobId, isFavorite));
+                    btn.setMessage(Text.literal(isFavorite ? "★" : "☆").styled(style -> style.withColor(0xFFFF55)));
+                }
+        ).dimensions(0, 0, 18, 18).tooltip(
+                Tooltip.of(Text.literal("Toggle Favorite"))
+        ).build();
+        this.addDrawableChild(favButton);
         int buttonY = y + pageHeight - 20;
 
         backButton = new PageTurnButton(x + 101, buttonY, false, () -> {
@@ -360,6 +357,9 @@ public class MobDetailsScreen extends Screen {
             int modWidth = renderer.getWidth(modName);
             context.drawText(renderer, modName, -(modWidth / 2), 0, 0x777777, false);
             matrices.pop();
+
+            favButton.setX(mobSlotX + mobSlotW / 2 - 9); // center horizontally
+            favButton.setY(mobSlotY + mobSlotH - 3);     // below mod name
 
             Long ticks = JournalClientData.DISCOVERED_TIME.get(mobId);
             if (ticks != null && ticks >= 0) {

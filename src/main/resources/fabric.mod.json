@@ -28,7 +28,7 @@
 		"cardinal-components": [
 			"journal:journal",
 			"journal:mob_stats",
-			"journal:"
+			"journal:favorites"
 		]
 	},
 	"depends": {

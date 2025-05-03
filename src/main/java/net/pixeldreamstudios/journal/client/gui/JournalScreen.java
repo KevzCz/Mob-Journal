@@ -4,6 +4,9 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.tooltip.Tooltip;
+import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.widget.PressableWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.render.entity.EntityRenderDispatcher;
 import net.minecraft.client.util.math.MatrixStack;
@@ -45,7 +48,13 @@ public class JournalScreen extends Screen {
     private final Map<Identifier, LivingEntity> currentPageMobMap = new HashMap<>();
     private final Map<Identifier, CachedPose> poseCache = new HashMap<>();
     private int renderFrameCounter = 0;
+    private SortMode sortMode = SortMode.ALPHABETICAL;
 
+    private enum SortMode {
+        ALPHABETICAL,
+        DATE_DISCOVERED,
+        MOD_NAMESPACE
+    }
     private static class CachedPose {
         float limbPos, yaw;
         int age;
@@ -107,7 +116,11 @@ public class JournalScreen extends Screen {
             if (type == null) continue;
 
             var nameMatch = id.toString().contains(nameFilter);
-            var living = type.create(MinecraftClient.getInstance().world);
+            LivingEntity living = currentPageMobMap.computeIfAbsent(id, key -> {
+                var entityType = Registries.ENTITY_TYPE.get(key);
+                return entityType != null ? (LivingEntity) entityType.create(MinecraftClient.getInstance().world) : null;
+            });
+
             if (!(living instanceof LivingEntity entity)) continue;
 
             String entityName = entity.getDisplayName().getString().toLowerCase();
@@ -115,32 +128,89 @@ public class JournalScreen extends Screen {
                 filteredMobs.add(id);
             }
         }
+        switch (sortMode) {
+            case ALPHABETICAL -> {
+                filteredMobs.sort((a, b) -> {
+                    var typeA = Registries.ENTITY_TYPE.get(a);
+                    var typeB = Registries.ENTITY_TYPE.get(b);
+                    if (typeA == null || typeB == null) return 0;
 
-        filteredMobs.sort((a, b) -> {
-            var typeA = Registries.ENTITY_TYPE.get(a);
-            var typeB = Registries.ENTITY_TYPE.get(b);
-            if (typeA == null || typeB == null) return 0;
+                    var world = MinecraftClient.getInstance().world;
+                    if (world == null) return 0;
 
-            var world = MinecraftClient.getInstance().world;
-            if (world == null) return 0;
+                    var entA = typeA.create(world);
+                    var entB = typeB.create(world);
 
-            var entA = typeA.create(world);
-            var entB = typeB.create(world);
+                    if (!(entA instanceof LivingEntity la) || !(entB instanceof LivingEntity lb)) return 0;
+                    return la.getDisplayName().getString().compareToIgnoreCase(lb.getDisplayName().getString());
+                });
+            }
+            case DATE_DISCOVERED -> {
+                filteredMobs.sort(Comparator.comparingLong(
+                        id -> -JournalClientData.DISCOVERED_TIME.getOrDefault(id, 0L)
+                ));
+            }
+            case MOD_NAMESPACE -> {
+                filteredMobs.sort((a, b) -> {
+                    int nsCompare = a.getNamespace().compareToIgnoreCase(b.getNamespace());
+                    if (nsCompare != 0) return nsCompare;
 
-            if (!(entA instanceof LivingEntity la) || !(entB instanceof LivingEntity lb)) return 0;
-            return la.getDisplayName().getString().compareToIgnoreCase(lb.getDisplayName().getString());
-        });
+                    var typeA = Registries.ENTITY_TYPE.get(a);
+                    var typeB = Registries.ENTITY_TYPE.get(b);
+
+                    if (typeA == null || typeB == null) return 0;
+
+                    var nameA = typeA.getName().getString();
+                    var nameB = typeB.getName().getString();
+
+                    return nameA.compareToIgnoreCase(nameB);
+                });
+            }
+        }
+
+        if (!JournalClientData.FAVORITE_MOBS.isEmpty()) {
+            filteredMobs.sort((a, b) -> {
+                boolean aFav = JournalClientData.FAVORITE_MOBS.contains(a);
+                boolean bFav = JournalClientData.FAVORITE_MOBS.contains(b);
+                if (aFav && !bFav) return -1;
+                if (!aFav && bFav) return 1;
+                return 0;
+            });
+        }
 
         totalPages = (int) Math.ceil(filteredMobs.size() / 12.0);
         if (currentPage >= totalPages) {
             currentPage = Math.max(totalPages - 1, 0);
         }
+
     }
 
     public void updateDiscoveredMobs() {
         updateFilteredList();
         updateButtons();
     }
+    private int calculateDynamicScale(LivingEntity entity, int maxWidth, int maxHeight, int baseScale) {
+        double width = entity.getWidth();
+        double height = entity.getHeight();
+
+        if (width == 0 || height == 0) return baseScale;
+
+        // Add extra padding for visual margin (looks cleaner)
+        double padding = 0.8;
+
+        // Convert hitbox to pixel space and scale to fit
+        double scaleX = (maxWidth / (width * 16.0)) * padding;
+        double scaleY = (maxHeight / (height * 16.0)) * padding;
+
+        double scale = Math.min(scaleX, scaleY);
+
+        // Clamp to avoid mobs being way too small or exploding
+        int clamped = (int) Math.max(8, Math.min(scale, baseScale));
+
+        return clamped;
+    }
+
+
 
     @Override
     protected void init() {
@@ -163,6 +233,43 @@ public class JournalScreen extends Screen {
             updateFilteredList();
             updateButtons();
         });
+        int sortButtonX = this.width / 2 + 110;
+        int sortButtonY = searchBox.getY();
+
+        ButtonWidget sortButton = ButtonWidget.builder(
+                        Text.literal("A→Z"),
+                        btn -> {
+                            sortMode = switch (sortMode) {
+                                case ALPHABETICAL     -> SortMode.DATE_DISCOVERED;
+                                case DATE_DISCOVERED  -> SortMode.MOD_NAMESPACE;
+                                case MOD_NAMESPACE    -> SortMode.ALPHABETICAL;
+                            };
+
+                            String label = switch (sortMode) {
+                                case ALPHABETICAL     -> "A→Z";
+                                case DATE_DISCOVERED  -> "🕒";
+                                case MOD_NAMESPACE    -> "@mod";
+                            };
+
+                            Text tooltipText = switch (sortMode) {
+                                case ALPHABETICAL     -> Text.literal("Sort: A → Z");
+                                case DATE_DISCOVERED  -> Text.literal("Sort: Recently Discovered");
+                                case MOD_NAMESPACE    -> Text.literal("Sort: By Mod Namespace");
+                            };
+
+                            btn.setMessage(Text.literal(label));
+                            btn.setTooltip(Tooltip.of(tooltipText));
+
+                            updateFilteredList();
+                        }
+                ).dimensions(sortButtonX, sortButtonY, 30, 18)
+                .tooltip(Tooltip.of(Text.literal("Sort: A → Z")))
+                .build();
+
+
+
+        this.addDrawableChild(sortButton);
+
 
         this.addSelectableChild(searchBox);
         this.setInitialFocus(searchBox);
@@ -278,6 +385,20 @@ public class JournalScreen extends Screen {
             int y = startY + row * spacingY;
 
             mobSlots.add(new MobSlot(id, x - 15, y - 20, boxWidth, boxHeight));
+            if (JournalClientData.FAVORITE_MOBS.contains(id)) {
+                matrices.push();
+                matrices.translate(x - boxWidth / 2 + 2, y - boxHeight / 2 + 2, 0);
+                matrices.scale(0.75f, 0.75f, 1.0f);
+                context.drawText(
+                        MinecraftClient.getInstance().textRenderer,
+                        Text.literal("★").styled(style -> style.withColor(0xFFFF55)), // bright yellow
+                        0,
+                        0,
+                        0xFFFF55,
+                        false
+                );
+                matrices.pop();
+            }
 
             boolean isHovered = mouseX >= x - boxWidth/2 && mouseX <= x + boxWidth/2
                     && mouseY >= y - boxHeight/2 && mouseY <= y + boxHeight/2;
@@ -292,24 +413,34 @@ public class JournalScreen extends Screen {
                 );
             }
 
-            CachedPose pose = poseCache.computeIfAbsent(id, k -> new CachedPose());
-            long now = System.currentTimeMillis();
-            if (updatePose || now - pose.lastUpdated > 250) {
-                pose.limbPos     = (now % 10000L) / 1000.0f * 3f;
-                pose.yaw         = (now % 8000L)  / 8000.0f * 360F;
-                pose.age         = (int)(now / 50L);
-                pose.lastUpdated = now;
+            // Approximate on-screen check: inside client window bounds
+            boolean isOnScreen = x + boxWidth / 2 >= 0 && x - boxWidth / 2 <= this.width &&
+                    y + boxHeight / 2 >= 0 && y - boxHeight / 2 <= this.height;
+
+            if (isOnScreen) {
+                CachedPose pose = poseCache.computeIfAbsent(id, k -> new CachedPose());
+                long now = System.currentTimeMillis();
+                if (updatePose || now - pose.lastUpdated > 250) {
+                    pose.limbPos     = (now % 10000L) / 1000.0f * 3f;
+                    pose.yaw         = (now % 8000L)  / 8000.0f * 360F;
+                    pose.age         = (int)(now / 50L);
+                    pose.lastUpdated = now;
+                }
+                ((LimbAnimatorAccessor) living.limbAnimator).setPos(pose.limbPos);
+                living.limbAnimator.updateLimbs(0.35f, 1f);
+                living.bodyYaw = pose.yaw;
+                living.setYaw(pose.yaw);
+                living.setPitch(0.0f);
+                living.headYaw = pose.yaw;
+                living.age     = pose.age;
             }
-            ((LimbAnimatorAccessor) living.limbAnimator).setPos(pose.limbPos);
-            living.limbAnimator.updateLimbs(0.35f, 1f);
-            living.bodyYaw = pose.yaw;
-            living.setYaw(pose.yaw);
-            living.setPitch(0.0f);
-            living.headYaw = pose.yaw;
-            living.age     = pose.age;
+
             int scale = isHovered ? hoverScale : baseScale;
+            int targetScale = calculateDynamicScale(living, boxWidth, boxHeight, isHovered ? hoverScale : baseScale);
+
             // drawMob still handles only per-mob push/pop
-            drawMob(context, x, y, scale, mouseX, mouseY, living);
+            drawMob(context, x, y, targetScale, mouseX, mouseY, living);
+
 
             Nameplate plate = new Nameplate(
                     living.getDisplayName().getString(),
@@ -444,11 +575,12 @@ public class JournalScreen extends Screen {
                 return true;
             }
         }
-
         nextButton.mouseClicked(mouseX, mouseY);
         backButton.mouseClicked(mouseX, mouseY);
-        return searchBox.mouseClicked(mouseX, mouseY, button) || super.mouseClicked(mouseX, mouseY, button);
+        // Don't manually call mouseClicked on widgets you've added via addDrawableChild!
+        return super.mouseClicked(mouseX, mouseY, button);
     }
+
 
     private long nextTypingSoundTime = 0;
 
