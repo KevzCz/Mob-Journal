@@ -22,7 +22,7 @@ public class CustomToastManager {
         int screenHeight = client.getWindow().getScaledHeight();
 
         int toastWidth = 140;
-        int toastHeight = 36;
+        int toastHeight = 18;
 
         long slideDuration = 600;
         long totalDuration = 5000;

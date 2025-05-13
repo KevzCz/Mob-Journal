@@ -15,25 +15,25 @@ import net.minecraft.util.Identifier;
 import net.minecraft.world.World;
 import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.events.JournalSounds;
+import net.pixeldreamstudios.journal.item.JournalItem;
+import net.pixeldreamstudios.journal.item.JournalItems;
 
 public class MobDiscoveredToast implements Toast {
     private final EntityType<?> entityType;
-    private final Text title;
     private final Text description;
 
     private boolean playedSound = false;
     private LivingEntity cachedEntity;
 
-    public MobDiscoveredToast(EntityType<?> entityType, Text title, Text description) {
+    public MobDiscoveredToast(EntityType<?> entityType, Text description) {
         this.entityType = entityType;
-        this.title = title;
         this.description = description;
     }
 
     public static void show(EntityType<?> entityType, Text title, Text description) {
         Identifier id = EntityType.getId(entityType);
         if (JournalConfig.isBlacklisted(id)) return;
-        CustomToastManager.add(new MobDiscoveredToast(entityType, title, description));
+        CustomToastManager.add(new MobDiscoveredToast(entityType, description));
     }
 
     @Override
@@ -64,27 +64,28 @@ public class MobDiscoveredToast implements Toast {
 
         int textX;
         int mobX;
+        int bookItemX;
         int spacing = 10; // 👈 adjust this value to tweak distance (was 45)
 
         if (right) {
             mobX = 15;
             textX = spacing + 45;
+            bookItemX = textX + 65;
         } else {
-            textX = 5;
+            textX = 25;
             mobX = getWidth() - spacing - 50;
+            bookItemX = textX - 25;
         }
 
         // Mob or book icon
         if (cachedEntity != null) {
-            drawEntity(context, mobX + 18, 18, 10, cachedEntity);
+            drawEntity(context, mobX + 15, 5, 5, cachedEntity); // Centered and scaled for 18px
         } else {
-            context.drawItem(Items.WRITABLE_BOOK.getDefaultStack(), mobX + 5, 5);
+            context.drawItem(JournalItems.JOURNAL_ITEM.getDefaultStack(), mobX + 15, 5);
         }
 
-        // Text content
-        context.drawText(client.textRenderer, title, textX, 8, 0xFFFFFF, false);
-        context.drawText(client.textRenderer, description, textX, 20, 0xAAAAAA, false);
-
+        context.drawText(client.textRenderer, description, textX, 5, 0xFFFFFF, false);
+        context.drawItem(JournalItems.JOURNAL_ITEM.getDefaultStack(), bookItemX, 0);
         return startTime >= 5000L ? Visibility.HIDE : Visibility.SHOW;
     }
 
@@ -119,6 +120,6 @@ public class MobDiscoveredToast implements Toast {
 
     @Override
     public int getHeight() {
-        return 36;
+        return 18;
     }
 }
