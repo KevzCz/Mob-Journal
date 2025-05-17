@@ -9,13 +9,11 @@ import net.minecraft.client.toast.ToastManager;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.item.Items;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.world.World;
 import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.events.JournalSounds;
-import net.pixeldreamstudios.journal.item.JournalItem;
 import net.pixeldreamstudios.journal.item.JournalItems;
 
 public class MobDiscoveredToast implements Toast {
@@ -24,6 +22,7 @@ public class MobDiscoveredToast implements Toast {
 
     private boolean playedSound = false;
     private LivingEntity cachedEntity;
+    private int dynamicWidth = 140; // fallback default
 
     public MobDiscoveredToast(EntityType<?> entityType, Text description) {
         this.entityType = entityType;
@@ -62,15 +61,20 @@ public class MobDiscoveredToast implements Toast {
         boolean right = JournalConfig.toastPosition == JournalConfig.ToastPosition.TOP_RIGHT ||
                 JournalConfig.toastPosition == JournalConfig.ToastPosition.BOTTOM_RIGHT;
 
+        int spacing = 10;
+        int iconWidth = 40;  // room for mob or item
+        int bookIconWidth = 20;
+        int textWidth = client.textRenderer.getWidth(description);
+        dynamicWidth = iconWidth + spacing + textWidth + spacing + bookIconWidth;
+
         int textX;
         int mobX;
         int bookItemX;
-        int spacing = 10; // 👈 adjust this value to tweak distance (was 45)
 
         if (right) {
             mobX = 15;
             textX = spacing + 45;
-            bookItemX = textX + 65;
+            bookItemX = textX + textWidth + spacing;
         } else {
             textX = 25;
             mobX = getWidth() - spacing - 50;
@@ -86,9 +90,9 @@ public class MobDiscoveredToast implements Toast {
 
         context.drawText(client.textRenderer, description, textX, 5, 0xFFFFFF, false);
         context.drawItem(JournalItems.JOURNAL_ITEM.getDefaultStack(), bookItemX, 0);
+
         return startTime >= 5000L ? Visibility.HIDE : Visibility.SHOW;
     }
-
 
     private void drawEntity(DrawContext context, int x, int y, int scale, LivingEntity entity) {
         MinecraftClient client = MinecraftClient.getInstance();
@@ -115,7 +119,7 @@ public class MobDiscoveredToast implements Toast {
 
     @Override
     public int getWidth() {
-        return 140;
+        return dynamicWidth;
     }
 
     @Override

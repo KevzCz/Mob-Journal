@@ -21,9 +21,6 @@ public class CustomToastManager {
         int screenWidth = client.getWindow().getScaledWidth();
         int screenHeight = client.getWindow().getScaledHeight();
 
-        int toastWidth = 140;
-        int toastHeight = 18;
-
         long slideDuration = 600;
         long totalDuration = 5000;
 
@@ -33,7 +30,6 @@ public class CustomToastManager {
         boolean right = JournalConfig.toastPosition == JournalConfig.ToastPosition.TOP_RIGHT ||
                 JournalConfig.toastPosition == JournalConfig.ToastPosition.BOTTOM_RIGHT;
 
-        int finalX = right ? screenWidth - toastWidth - 5 : 5;
         int yStart = top ? 5 : screenHeight - 5;
 
         Iterator<CustomToastEntry> iterator = toasts.iterator();
@@ -44,20 +40,20 @@ public class CustomToastManager {
             long elapsed = entry.getElapsed();
             long remaining = totalDuration - elapsed;
 
+            int toastWidth = entry.toast.getWidth();
+            int toastHeight = entry.toast.getHeight();
+
             float progress;
             int x;
 
             if (elapsed < slideDuration) {
-                // Slide in from offscreen
                 progress = easeOutQuad(elapsed / (float) slideDuration);
                 x = interpolateX(right, toastWidth, progress);
             } else if (remaining <= slideDuration) {
-                // Slide out to offscreen
                 progress = easeInQuad((slideDuration - remaining) / (float) slideDuration);
                 x = interpolateX(right, toastWidth, 1 - progress);
             } else {
-                // Fully visible
-                x = finalX;
+                x = right ? screenWidth - toastWidth - 5 : 5;
             }
 
             int y = top
@@ -86,11 +82,11 @@ public class CustomToastManager {
     }
 
     private static float easeOutQuad(float t) {
-        return -t * (t - 2); // Fast to slow
+        return -t * (t - 2);
     }
 
     private static float easeInQuad(float t) {
-        return t * t; // Slow to fast
+        return t * t;
     }
 
     private static class CustomToastEntry {
