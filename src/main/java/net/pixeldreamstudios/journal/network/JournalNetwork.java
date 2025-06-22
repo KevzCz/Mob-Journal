@@ -13,6 +13,27 @@ import net.pixeldreamstudios.journal.events.MobStatEventHandler;
 import net.pixeldreamstudios.journal.item.JournalItems;
 
 public class JournalNetwork {
+    private static void safeSendJournalSync(ServerPlayerEntity player) {
+        try {
+            var journal = JournalComponents.JOURNAL.get(player);
+            var discoveries = journal.getDiscovered();
+
+            // Sanitize map before sending
+            discoveries.entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
+
+            ServerPlayNetworking.send(player, new SyncJournalPayload(discoveries));
+        } catch (Exception e) {
+            System.err.println("[Journal] Failed to sync journal for " + player.getName().getString() + ": " + e.getMessage());
+            // Optional: schedule retry
+            player.server.execute(() -> {
+                try {
+                    Thread.sleep(100); // crude delay
+                } catch (InterruptedException ignored) {}
+                safeSendJournalSync(player);
+            });
+        }
+    }
+
     public static void init() {
         // ─── Mob stat handler ───
         MobStatEventHandler.register();
@@ -27,8 +48,7 @@ public class JournalNetwork {
                 if (journal.unlockMob(id)) {
                     ServerPlayNetworking.send(player, new DiscoveredMobToastPayload(id));
                     // now send the full id→timestamp map instead of just a list
-                    ServerPlayNetworking.send(player,
-                            new SyncJournalPayload(journal.getDiscovered()));
+                    safeSendJournalSync(player);
                 }
             });
         });
@@ -56,8 +76,7 @@ public class JournalNetwork {
                 var journal = JournalComponents.JOURNAL.get(player);
                 journal.removeBlacklistedMobs();
                 // likewise here
-                ServerPlayNetworking.send(player,
-                        new SyncJournalPayload(journal.getDiscovered()));
+                safeSendJournalSync(player);
                 var mobStats = JournalComponents.MOB_STATS.get(player);
                 ServerPlayNetworking.send(player, new SyncMobStatsPayload(mobStats.getAllStats()));
             });
