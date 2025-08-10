@@ -24,8 +24,7 @@ public class PageTurnButton {
     public boolean active = true;
 
     private float fillProgress = 0f;
-    private final float fillSpeed = 0.05f; // How fast it fills/unfills per frame
-
+    private final float fillSpeed = 0.05f;
     public PageTurnButton(int x, int y, boolean isNext, Runnable onClick) {
         this.x = x;
         this.y = y;
@@ -38,26 +37,21 @@ public class PageTurnButton {
 
         hovered = isMouseOver(mouseX, mouseY);
 
-        // Update fill progress
         if (hovered) {
             fillProgress = Math.min(1.0f, fillProgress + fillSpeed);
         } else {
             fillProgress = Math.max(0.0f, fillProgress - fillSpeed);
         }
 
-        // Choose textures
         Identifier base = isNext ? ARROW_FLIPPED_TEXTURE : ARROW_TEXTURE;
         Identifier fill = isNext ? ARROW_FLIPPED_HOVER_TEXTURE : ARROW_HOVER_TEXTURE;
 
-        // Draw base arrow
         context.drawTexture(base, x, y, 0, 0, width, height, width, height);
 
-        // Draw fill overlay with progressive width
         if (fillProgress > 0) {
             int fillWidth = (int) (width * fillProgress);
 
             if (isNext) {
-                // Fill left to right
                 context.drawTexture(
                         fill,
                         x, y,
@@ -66,7 +60,6 @@ public class PageTurnButton {
                         width, height
                 );
             } else {
-                // Fill right to left
                 int offsetX = width - fillWidth;
                 context.drawTexture(
                         fill,

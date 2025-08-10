@@ -13,11 +13,9 @@ public record OpenJournalPayload() implements CustomPayload {
 
     public static final OpenJournalPayload INSTANCE = new OpenJournalPayload();
 
-    // 🧩 Register codec for Fabric 1.21.1+ (no data sent)
     public static final PacketCodec<RegistryByteBuf, OpenJournalPayload> CODEC =
             PacketCodec.of(
                     (buf, payload) -> {
-                        // No data to write
                     },
                     buf -> INSTANCE
             );

@@ -21,18 +21,15 @@ public class MobUnlockTracker {
     private static int tickCounter = 0;
     private static final Set<Identifier> alreadySent = new HashSet<>();
 
-    /** Clears when player respawns or dimension‐changes */
     public static void resetSentMobs() {
         alreadySent.clear();
     }
 
-    /** Called every client tick; scans only every mobCheckInterval ticks */
     public static void tick() {
         var client = MinecraftClient.getInstance();
         var player = client.player;
         if (player == null || client.world == null) return;
 
-        // 1) Gather any new, nearby, alive, not‐blacklisted, not‐yet‐sent mobs
         var nearby = client.world.getEntitiesByClass(
                 LivingEntity.class,
                 new Box(player.getPos(), player.getPos())
@@ -46,16 +43,13 @@ public class MobUnlockTracker {
                 toUnlock.add(id);
             }
         }
-        // 2) nothing new? reset counter & bail
         if (toUnlock.isEmpty()) {
             tickCounter = 0;
             return;
         }
-        // 3) cool‐down
         tickCounter++;
         if (tickCounter < JournalConfig.mobCheckInterval) return;
         tickCounter = 0;
-        // 4) actually send
         for (var id : toUnlock) {
             ClientPlayNetworking.send(new UnlockMobPayload(id));
             alreadySent.add(id);

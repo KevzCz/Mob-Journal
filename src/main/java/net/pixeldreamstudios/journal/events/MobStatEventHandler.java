@@ -10,7 +10,6 @@ import net.pixeldreamstudios.journal.data.JournalComponents;
 public class MobStatEventHandler {
 
     public static void register() {
-        // 🗡️ Kill tracking
         ServerEntityCombatEvents.AFTER_KILLED_OTHER_ENTITY.register((world, entity, killed) -> {
             if (entity instanceof ServerPlayerEntity player && killed.getType().isSummonable()) {
                 Identifier id = EntityType.getId(killed.getType());
@@ -18,7 +17,6 @@ public class MobStatEventHandler {
             }
         });
 
-        // 💀 Death tracking (player dies to mob)
         ServerEntityCombatEvents.AFTER_KILLED_OTHER_ENTITY.register((world, killer, victim) -> {
             if (victim instanceof ServerPlayerEntity player && killer instanceof LivingEntity mob) {
                 Identifier id = EntityType.getId(mob.getType());

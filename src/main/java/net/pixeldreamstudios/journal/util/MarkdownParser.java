@@ -13,13 +13,10 @@ import java.util.regex.Pattern;
 
 public class MarkdownParser {
 
-    // Markdown styling
     private static final Pattern BOLD = Pattern.compile("\\*\\*(.+?)\\*\\*");
     private static final Pattern ITALIC = Pattern.compile("\\*(.+?)\\*");
     private static final Pattern TITLE = Pattern.compile("## (.+)");
     private static final Pattern HOVER_TEXT = Pattern.compile("\\[(.+?)\\]\\(hover:(.*?)\\)");
-
-    // Extended inline tag support with optional scale and tooltip
     private static final Pattern INLINE_TAG = Pattern.compile(
             "(!)?\\[(.*?)\\]\\((item|texture):([^\\s\")]+)(?:\\s+scale=([0-9.]+))?(?:\\s+\"(.*?)\")?\\)"
     );
@@ -51,7 +48,6 @@ public class MarkdownParser {
     public static List<ParsedLine> parse(String line) {
         List<ParsedLine> parts = new ArrayList<>();
 
-        // Handle headers (titles)
         Matcher title = TITLE.matcher(line);
         if (title.matches()) {
             parts.add(new ParsedLine(Text.literal(title.group(1)).formatted(Formatting.UNDERLINE, Formatting.BOLD)));
@@ -60,7 +56,6 @@ public class MarkdownParser {
 
         String processed = replaceMarkdown(line);
 
-        // Parse hover text links
         Matcher hoverText = HOVER_TEXT.matcher(processed);
         while (hoverText.find()) {
             String label = hoverText.group(1);
@@ -73,12 +68,10 @@ public class MarkdownParser {
             processed = processed.replace(hoverText.group(0), "");
         }
 
-        // Parse inline tags (item/texture)
         Matcher matcher = INLINE_TAG.matcher(processed);
         int lastEnd = 0;
 
         while (matcher.find()) {
-            // Add preceding text as literal
             if (matcher.start() > lastEnd) {
                 String before = processed.substring(lastEnd, matcher.start());
                 if (!before.isBlank()) {
@@ -86,12 +79,12 @@ public class MarkdownParser {
                 }
             }
 
-            boolean isBang = matcher.group(1) != null; // Starts with !
-            String label = matcher.group(2); // unused
-            String type = matcher.group(3); // item or texture
-            String value = matcher.group(4); // item ID or texture path
-            String scaleStr = matcher.group(5); // optional
-            String tooltipStr = matcher.group(6); // optional
+            boolean isBang = matcher.group(1) != null;
+            String label = matcher.group(2);
+            String type = matcher.group(3);
+            String value = matcher.group(4);
+            String scaleStr = matcher.group(5);
+            String tooltipStr = matcher.group(6);
 
             float scale = 1.0f;
             if (scaleStr != null) {
@@ -133,7 +126,6 @@ public class MarkdownParser {
             lastEnd = matcher.end();
         }
 
-        // Add any remaining text
         if (lastEnd < processed.length()) {
             String trailing = processed.substring(lastEnd);
             if (!trailing.isBlank()) {
@@ -170,11 +162,9 @@ public class MarkdownParser {
     );
 
     private static String replaceMarkdown(String input) {
-        // Replace **bold** and *italic* markdown
         String result = BOLD.matcher(input).replaceAll("§l$1§r");
         result = ITALIC.matcher(result).replaceAll("§o$1§r");
 
-        // Replace {color} placeholders
         for (Map.Entry<String, String> entry : COLOR_CODES.entrySet()) {
             result = result.replace("{" + entry.getKey() + "}", entry.getValue());
         }

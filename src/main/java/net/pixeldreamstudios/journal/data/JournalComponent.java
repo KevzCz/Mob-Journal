@@ -31,9 +31,6 @@ public class JournalComponent implements ComponentV3, AutoSyncedComponent, Respa
         return owner != null;
     }
 
-    /**
-     * Unlocks the mob and, if enabled, records the current server time.
-     */
     public boolean unlockMob(Identifier id) {
         if (id == null || discovered.containsKey(id)) return false;
 
@@ -43,7 +40,7 @@ public class JournalComponent implements ComponentV3, AutoSyncedComponent, Respa
         discovered.put(id, timestamp);
 
         if (isServerSide()) {
-            ServerPlayNetworking.send(owner, new DiscoveredMobPayload(id, timestamp)); // NEW
+            ServerPlayNetworking.send(owner, new DiscoveredMobPayload(id, timestamp));
         }
 
         return true;
@@ -72,7 +69,6 @@ public class JournalComponent implements ComponentV3, AutoSyncedComponent, Respa
         this.hasReceivedJournal = received;
     }
 
-    /** Expose both mob IDs and their discovery timestamps */
     public Map<Identifier, Long> getDiscovered() {
         return discovered;
     }

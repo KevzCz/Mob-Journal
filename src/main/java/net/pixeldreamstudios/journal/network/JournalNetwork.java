@@ -18,16 +18,13 @@ public class JournalNetwork {
             var journal = JournalComponents.JOURNAL.get(player);
             var discoveries = journal.getDiscovered();
 
-            // Sanitize map before sending
             discoveries.entrySet().removeIf(e -> e.getKey() == null || e.getValue() == null);
 
             ServerPlayNetworking.send(player, new SyncJournalPayload(discoveries));
         } catch (Exception e) {
-            System.err.println("[Journal] Failed to sync journal for " + player.getName().getString() + ": " + e.getMessage());
-            // Optional: schedule retry
             player.server.execute(() -> {
                 try {
-                    Thread.sleep(100); // crude delay
+                    Thread.sleep(100);
                 } catch (InterruptedException ignored) {}
                 safeSendJournalSync(player);
             });
@@ -35,10 +32,9 @@ public class JournalNetwork {
     }
 
     public static void init() {
-        // ─── Mob stat handler ───
+
         MobStatEventHandler.register();
 
-        // ─── Unlock-mob packet ───
         ServerPlayNetworking.registerGlobalReceiver(UnlockMobPayload.ID, (payload, context) -> {
             context.player().server.execute(() -> {
                 var player = context.player();
@@ -47,13 +43,12 @@ public class JournalNetwork {
                 if (JournalConfig.isBlacklisted(id)) return;
                 if (journal.unlockMob(id)) {
                     ServerPlayNetworking.send(player, new DiscoveredMobToastPayload(id));
-                    // now send the full id→timestamp map instead of just a list
                     safeSendJournalSync(player);
                 }
             });
         });
 
-        // ─── On player join ───
+
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayerEntity player = handler.getPlayer();
             var journal = JournalComponents.JOURNAL.get(player);
@@ -63,37 +58,35 @@ public class JournalNetwork {
             }
             journal.removeBlacklistedMobs();
 
-            // ✅ NEW: sync favorites on join
             var favorites = JournalComponents.FAVORITES.get(player);
             ServerPlayNetworking.send(player, new SyncFavoritesPayload(favorites.getFavorites()));
         });
 
 
-        // ─── Client-ready sync ───
         ServerPlayNetworking.registerGlobalReceiver(ClientReadyPayload.ID, (payload, context) -> {
             ServerPlayerEntity player = context.player();
             context.player().server.execute(() -> {
                 var journal = JournalComponents.JOURNAL.get(player);
                 journal.removeBlacklistedMobs();
-                // likewise here
+
                 safeSendJournalSync(player);
                 var mobStats = JournalComponents.MOB_STATS.get(player);
                 ServerPlayNetworking.send(player, new SyncMobStatsPayload(mobStats.getAllStats()));
             });
         });
 
-        // ─── Open-journal request ───
+
         ServerPlayNetworking.registerGlobalReceiver(OpenJournalPayload.ID, (payload, context) -> {
             ServerPlayerEntity player = context.player();
             var comp = JournalComponents.JOURNAL.get(player);
-            // …and here
+
             ServerPlayNetworking.send(player,
                     new SyncJournalPayload(comp.getDiscovered()));
             var stats = JournalComponents.MOB_STATS.get(player);
             ServerPlayNetworking.send(player, new SyncMobStatsPayload(stats.getAllStats()));
         });
 
-        // ─── Mob-drops preview ───
+
         ServerPlayNetworking.registerGlobalReceiver(RequestMobDropsPayload.ID, (payload, context) -> {
             var player = context.player();
             var world  = player.getServerWorld();
@@ -112,7 +105,7 @@ public class JournalNetwork {
             FavoriteMobsComponent comp = JournalComponents.FAVORITES.get(player);
             comp.toggleFavorite(payload.mobId(), payload.favorited());
 
-            // Optional: sync to client
+
             ServerPlayNetworking.send(player, new SyncFavoritesPayload(comp.getFavorites()));
         });
     }

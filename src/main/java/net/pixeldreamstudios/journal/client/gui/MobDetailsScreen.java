@@ -90,7 +90,6 @@ public class MobDetailsScreen extends Screen {
             dropIcons.add(new ParsedLine(Text.literal("§7(No known drops)")));
         }
 
-        // Replace placeholder text {INJECT_LOOT_DROPS} with the actual icons
         for (List<ParsedLine> line : allLines) {
             for (int i = 0; i < line.size(); i++) {
                 ParsedLine part = line.get(i);
@@ -142,9 +141,7 @@ public class MobDetailsScreen extends Screen {
         List<List<ParsedLine>> allLines = mob != null
                 ? net.pixeldreamstudios.journal.data.MobDescriptionLoader.getDescription(mobId, mob)
                 : List.of(List.of(new ParsedLine(Text.literal("§cUnknown mob"))));
-
-        // Inject dynamic loot only if placeholder is present
-        if (MarkdownParser.containsPlaceholder(allLines, "{getLootDrops}")) {
+         if (MarkdownParser.containsPlaceholder(allLines, "{getLootDrops}")) {
             List<ParsedLine> dropIcons = new ArrayList<>();
             for (ItemStack stack : JournalClientData.LAST_DROPS) {
                 ParsedLine icon = new ParsedLine(stack);
@@ -220,9 +217,7 @@ public class MobDetailsScreen extends Screen {
                     part.isItem() && JournalClientData.LAST_DROPS.stream()
                             .anyMatch(stack -> ItemStack.areItemsAndComponentsEqual(stack, part.item))
             );
-
-            // Detect start of loot section
-            if (inputRow.stream().anyMatch(p -> p.isText() && p.text.getString().replace("§", "").equalsIgnoreCase("Drops"))) {
+          if (inputRow.stream().anyMatch(p -> p.isText() && p.text.getString().replace("§", "").equalsIgnoreCase("Drops"))) {
                 insideLootSection = true;
             }
 
@@ -267,13 +262,11 @@ public class MobDetailsScreen extends Screen {
                 currentHeight += currentLineHeight + 4;
             }
 
-            // If we just finished a loot row and next isn't loot (or no next row)
             boolean nextRowIsNotLoot = (rowIndex + 1 >= lines.size()) ||
                     (lines.get(rowIndex + 1).stream().noneMatch(p -> p.isItem()));
 
             if (insideLootSection && rowIsLoot && nextRowIsNotLoot) {
                 if (JournalClientData.LAST_DROPS.size() > 5) {
-                    // Inject expand/collapse button
                     ParsedLine expandButton = new ParsedLine(Text.literal("{EXPAND_COLLAPSE}"));
                     List<ParsedLine> expandRow = List.of(expandButton);
 
@@ -285,7 +278,7 @@ public class MobDetailsScreen extends Screen {
                     currentPage.add(expandRow);
                     currentHeight += renderer.fontHeight + 4;
                 }
-                insideLootSection = false; // Only once
+                insideLootSection = false;
             }
         }
 
@@ -310,13 +303,12 @@ public class MobDetailsScreen extends Screen {
         backButton.mouseClicked(mouseX, mouseY);
         backDescButton.mouseClicked(mouseX, mouseY);
         nextButton.mouseClicked(mouseX, mouseY);
-        // Check if click is inside the expand button bounds
         if (expandButtonX >= 0 && expandButtonY >= 0) {
             if (mouseX >= expandButtonX && mouseX <= expandButtonX + expandButtonWidth &&
                     mouseY >= expandButtonY && mouseY <= expandButtonY + expandButtonHeight) {
                 showAllDrops = !showAllDrops;
                 rebuildWithDrops();
-                return true; // handled click
+                return true;
             }
         }
 
@@ -358,8 +350,8 @@ public class MobDetailsScreen extends Screen {
             context.drawText(renderer, modName, -(modWidth / 2), 0, 0x777777, false);
             matrices.pop();
 
-            favButton.setX(mobSlotX + mobSlotW / 2 - 9); // center horizontally
-            favButton.setY(mobSlotY + mobSlotH - 3);     // below mod name
+            favButton.setX(mobSlotX + mobSlotW / 2 - 9);
+            favButton.setY(mobSlotY + mobSlotH - 3);
 
             Long ticks = JournalClientData.DISCOVERED_TIME.get(mobId);
             if (ticks != null && ticks >= 0) {
@@ -479,12 +471,11 @@ public class MobDetailsScreen extends Screen {
 
 
 
-    // At the top of the class
+
     private final Map<LivingEntity, Boolean> animatedEntities = new WeakHashMap<>();
     private List<Text> getEffectiveTooltip(ParsedLine part, ItemStack item, int mouseX, int mouseY) {
         if (part.isItem()) {
-            // Always use vanilla tooltip for items unless explicitly overridden
-            if (part.hasExplicitTooltip && part.tooltip != null && !part.tooltip.getString().isBlank()) {
+           if (part.hasExplicitTooltip && part.tooltip != null && !part.tooltip.getString().isBlank()) {
                 return List.of(part.tooltip);
             }
 

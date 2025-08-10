@@ -15,6 +15,7 @@ import net.pixeldreamstudios.journal.client.MobUnlockTracker;
 import net.pixeldreamstudios.journal.client.gui.JournalScreen;
 import net.pixeldreamstudios.journal.client.gui.MobDetailsScreen;
 import net.pixeldreamstudios.journal.client.toast.MobDiscoveredToast;
+import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.item.JournalItems;
 import net.pixeldreamstudios.journal.network.SyncJournalPayload;
 import net.pixeldreamstudios.journal.util.MobEntityCache;
@@ -23,31 +24,29 @@ import java.util.Map;
 
 public class JournalClientNetwork {
     public static void init() {
-        // Open-journal response (now carrying timestamps)
+
         ClientPlayNetworking.registerGlobalReceiver(SyncJournalPayload.ID, (payload, context) -> {
             MinecraftClient.getInstance().execute(() -> {
-                // clear old discoveries
+
                 JournalClientData.DISCOVERED.clear();
                 JournalClientData.DISCOVERED_TIME.clear();
 
-                // repopulate with id → timestamp
                 for (Map.Entry<Identifier, Long> e : payload.discoveries().entrySet()) {
                     JournalClientData.DISCOVERED.add(e.getKey());
                     JournalClientData.DISCOVERED_TIME.put(e.getKey(), e.getValue());
                 }
 
-                // preload every entity
+
                 MobEntityCache.preload(payload.discoveries().keySet(), MinecraftClient.getInstance().world);
 
-                // refresh GUI if it's open
+
                 if (MinecraftClient.getInstance().currentScreen instanceof JournalScreen screen) {
                     screen.updateDiscoveredMobs();
                 }
 
-                // reset your unlock-tracker
+
                 MobUnlockTracker.resetSentMobs();
 
-                // trigger screen open if requested
                 if (JournalClientData.shouldOpenJournalScreen) {
                     MinecraftClient.getInstance().player.playSound(
                             net.minecraft.sound.SoundEvents.ITEM_BOOK_PAGE_TURN,
@@ -69,7 +68,6 @@ public class JournalClientNetwork {
             });
         });
 
-        // Mob-drops response
         ClientPlayNetworking.registerGlobalReceiver(SyncMobDropsPayload.ID, (payload, context) -> {
             MinecraftClient.getInstance().execute(() -> {
                 JournalClientData.LAST_DROPS = new java.util.ArrayList<>(payload.drops().values());
@@ -79,7 +77,6 @@ public class JournalClientNetwork {
             });
         });
 
-        // Toast on discovery
         ClientPlayNetworking.registerGlobalReceiver(DiscoveredMobToastPayload.ID, (payload, context) -> {
             context.client().execute(() -> {
                 Identifier mobId = payload.mobId();
@@ -92,7 +89,6 @@ public class JournalClientNetwork {
             });
         });
 
-        // Stat sync
         ClientPlayNetworking.registerGlobalReceiver(SyncMobStatsPayload.ID, (payload, context) -> {
             MinecraftClient.getInstance().execute(() -> {
                 JournalClientData.MOB_STATS.clear();
@@ -100,7 +96,6 @@ public class JournalClientNetwork {
             });
         });
 
-        // Send “I’m ready” on join
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             sender.sendPacket(ClientReadyPayload.INSTANCE);
         });
@@ -110,18 +105,20 @@ public class JournalClientNetwork {
                 JournalClientData.FAVORITE_MOBS.addAll(payload.favoriteMobs());
 
                 if (MinecraftClient.getInstance().currentScreen instanceof JournalScreen screen) {
-                    screen.updateDiscoveredMobs(); // update sort order if affected
+                    screen.updateDiscoveredMobs();
                 }
             });
         });
 
-        // Keybind & unlock-ticker
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (JournalClient.openJournalKey.wasPressed()) {
                 if (client.player != null && client.world != null) {
                     boolean hasJournal = client.player.getInventory()
                             .contains(new ItemStack(JournalItems.JOURNAL_ITEM));
-                    if (hasJournal) {
+
+                    boolean needsBook = JournalConfig.requireJournalInInventory;
+
+                    if (!needsBook || hasJournal) {
                         JournalClientData.shouldOpenJournalScreen = true;
                         ClientPlayNetworking.send(OpenJournalPayload.INSTANCE);
                     } else {

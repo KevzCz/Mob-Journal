@@ -48,7 +48,7 @@ public class JournalCommands {
             if (!type.isSummonable()) continue;
 
             var entity = type.create(player.getWorld());
-            if (!(entity instanceof LivingEntity)) continue; // <-- 💥 skip if not a mob
+            if (!(entity instanceof LivingEntity)) continue;
 
             Identifier id = Registries.ENTITY_TYPE.getId(type);
             if (JournalConfig.isBlacklisted(id)) continue;
@@ -62,7 +62,7 @@ public class JournalCommands {
 
         int finalUnlocked = unlocked;
         context.getSource().sendFeedback(() ->
-                Text.literal("✅ Unlocked " + finalUnlocked + " mobs in the journal."), false);
+                Text.literal("Unlocked " + finalUnlocked + " mobs in the journal."), false);
 
         return unlocked;
     }
@@ -73,7 +73,6 @@ public class JournalCommands {
         var journal = JournalComponents.JOURNAL.get(player);
         journal.clearDiscovered();
 
-        // now send an empty map instead of an empty list
         ServerPlayNetworking.send(player, new SyncJournalPayload(Collections.emptyMap()));
         context.getSource().sendFeedback(() ->
                 Text.literal("Cleared all discovered mobs in the journal."), false);
@@ -87,26 +86,23 @@ public class JournalCommands {
 
         if (journal.removeMob(id)) {
             context.getSource().sendFeedback(() ->
-                    Text.literal("❌ Removed mob from journal: " + id), false);
+                    Text.literal("Removed mob from journal: " + id), false);
 
-            // now send the full id→timestamp map
             ServerPlayNetworking.send(player,
                     new SyncJournalPayload(journal.getDiscovered()));
 
             return 1;
         } else {
             context.getSource().sendFeedback(() ->
-                    Text.literal("⚠️ Mob not found in journal: " + id), false);
+                    Text.literal("Mob not found in journal: " + id), false);
             return 0;
         }
     }
 
-    // 🧠 Suggestions for `/journal remove` autocomplete
     private static final SuggestionProvider<ServerCommandSource> SUGGEST_DISCOVERED_MOBS = (context, builder) -> {
         ServerPlayerEntity player = context.getSource().getPlayer();
         var journal = JournalComponents.JOURNAL.get(player);
 
-        // switch from the old Set to your Map's keySet()
         return net.minecraft.command.CommandSource.suggestIdentifiers(
                 journal.getDiscovered().keySet().stream(), builder
         );

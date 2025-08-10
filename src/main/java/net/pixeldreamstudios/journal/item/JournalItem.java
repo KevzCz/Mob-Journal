@@ -16,11 +16,7 @@ public class JournalItem extends Item {
     @Override
     public TypedActionResult<ItemStack> use(World world, PlayerEntity player, Hand hand) {
         if (world.isClient) {
-
-            // 👇 Set flag to open screen after payload is received
             net.pixeldreamstudios.journal.client.JournalClientData.shouldOpenJournalScreen = true;
-
-            // Send payload to server
             net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(OpenJournalPayload.INSTANCE);
         }
 

@@ -29,7 +29,7 @@ public record SyncJournalPayload(Map<Identifier, Long> discoveries) implements C
     public void write(RegistryByteBuf buf) {
         buf.writeInt(discoveries.size());
         for (var e : discoveries.entrySet()) {
-            if (e.getKey() == null) continue; // Skip invalid entries
+            if (e.getKey() == null) continue;
             buf.writeIdentifier(e.getKey());
             buf.writeLong(e.getValue() == null ? -1L : e.getValue());
         }

@@ -4,7 +4,7 @@ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 
 public class JournalPayload {
     public static void init() {
-        // ─── Clientbound (S2C) ───
+
         PayloadTypeRegistry.playS2C().register(SyncJournalPayload.ID,      SyncJournalPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(SyncMobStatsPayload.ID,    SyncMobStatsPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(DiscoveredMobToastPayload.ID, DiscoveredMobToastPayload.CODEC);
@@ -12,7 +12,7 @@ public class JournalPayload {
         PayloadTypeRegistry.playS2C().register(DiscoveredMobPayload.ID, DiscoveredMobPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(SyncFavoritesPayload.ID, SyncFavoritesPayload.CODEC);
 
-        // ─── Serverbound (C2S) ───
+
         PayloadTypeRegistry.playC2S().register(OpenJournalPayload.ID,      OpenJournalPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(UnlockMobPayload.ID,       UnlockMobPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(RequestMobDropsPayload.ID, RequestMobDropsPayload.CODEC);

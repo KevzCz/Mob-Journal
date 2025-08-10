@@ -12,6 +12,6 @@ public class SilentButtonWidget extends ButtonWidget {
 
     @Override
     public void playDownSound(SoundManager soundManager) {
-        // silence vanilla sound
+
     }
 }

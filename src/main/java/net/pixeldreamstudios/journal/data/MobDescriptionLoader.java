@@ -26,19 +26,16 @@ public class MobDescriptionLoader {
         Optional<Resource> resourceOpt = MinecraftClient.getInstance().getResourceManager().getResource(jsonPath);
         if (resourceOpt.isEmpty()) {
 
-            // 1. Try namespace-level default (e.g. mobs_desc/minecraft/default.json)
             List<List<ParsedLine>> nsFallback = getNamespaceDefaultDescription(mobId, mob);
             if (!nsFallback.isEmpty()) {
                 return nsFallback;
             }
 
-            // 2. Try global default (e.g. mobs_desc/journal/default.json)
             List<List<ParsedLine>> fallback = getDefaultDescription(mobId, mob);
             if (!fallback.isEmpty()) {
                 return fallback;
             }
 
-            // 3. Fall back to hardcoded values
             return getFallback(mobId, mob);
         }
 
@@ -226,15 +223,11 @@ public class MobDescriptionLoader {
                 .replace("{namespace}", mobId.getNamespace())
                 .replace("{path}", mobId.getPath());
 
-        // Get client-side stats if present
         var stat = JournalClientData.MOB_STATS.getOrDefault(mobId, new MobStat(0, 0));
-        // {getExperience}
-        // {getTameable}
         boolean isTameable = mob instanceof TameableEntity;
         result = result.replace("{getTameable}", isTameable ? "Yes" : "No");
 
-        // {getCategory}
-        String category = mob.getType().getSpawnGroup().asString(); // E.g., monster, creature, water_creature
+        String category = mob.getType().getSpawnGroup().asString();
         result = result.replace("{getCategory}", capitalizeFirst(category));
 
         result = result

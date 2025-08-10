@@ -44,7 +44,6 @@ public class JournalScreen extends Screen {
 
     public final List<MobSlot> mobSlots = new ArrayList<>();
 
-    // 🧠 Lightweight page-based cache
     private final Map<Identifier, LivingEntity> currentPageMobMap = new HashMap<>();
     private final Map<Identifier, CachedPose> poseCache = new HashMap<>();
     private int renderFrameCounter = 0;
@@ -90,7 +89,7 @@ public class JournalScreen extends Screen {
 
     private void updateFilteredList() {
         filteredMobs.clear();
-        currentPageMobMap.clear(); // 🔄 Refresh cache for new page
+        currentPageMobMap.clear();
 
         String namespaceFilter = null;
         String nameFilter = "";
@@ -195,16 +194,13 @@ public class JournalScreen extends Screen {
 
         if (width == 0 || height == 0) return baseScale;
 
-        // Add extra padding for visual margin (looks cleaner)
         double padding = 0.8;
 
-        // Convert hitbox to pixel space and scale to fit
         double scaleX = (maxWidth / (width * 16.0)) * padding;
         double scaleY = (maxHeight / (height * 16.0)) * padding;
 
         double scale = Math.min(scaleX, scaleY);
 
-        // Clamp to avoid mobs being way too small or exploding
         int clamped = (int) Math.max(8, Math.min(scale, baseScale));
 
         return clamped;
@@ -337,9 +333,9 @@ public class JournalScreen extends Screen {
 
 
     private void renderMobGrid(DrawContext context, int leftStartX, int startY, int mouseX, int mouseY) {
-        // ─── existing setup ───
+
         mobSlots.clear();
-        renderFrameCounter = (renderFrameCounter + 1) % 3; // Only update pose every 3 frames
+        renderFrameCounter = (renderFrameCounter + 1) % 3;
         boolean updatePose = renderFrameCounter == 0;
 
         MinecraftClient client = MinecraftClient.getInstance();
@@ -362,15 +358,11 @@ public class JournalScreen extends Screen {
 
         List<Nameplate> pendingNameplates = new ArrayList<>();
 
-        // ─── NEW: disable shadows once ───
         EntityRenderDispatcher dispatcher = client.getEntityRenderDispatcher();
         dispatcher.setRenderShadows(false);
-
-        // ─── NEW: push once for entire batch ───
         MatrixStack matrices = context.getMatrices();
         matrices.push();
 
-        // ─── draw each mob ───
         for (int i = startIndex; i < endIndex; i++) {
             Identifier id = filteredMobs.get(i);
             LivingEntity living = MobEntityCache.get(id, world);
@@ -391,7 +383,7 @@ public class JournalScreen extends Screen {
                 matrices.scale(0.75f, 0.75f, 1.0f);
                 context.drawText(
                         MinecraftClient.getInstance().textRenderer,
-                        Text.literal("★").styled(style -> style.withColor(0xFFFF55)), // bright yellow
+                        Text.literal("★").styled(style -> style.withColor(0xFFFF55)),
                         0,
                         0,
                         0xFFFF55,
@@ -413,7 +405,6 @@ public class JournalScreen extends Screen {
                 );
             }
 
-            // Approximate on-screen check: inside client window bounds
             boolean isOnScreen = x + boxWidth / 2 >= 0 && x - boxWidth / 2 <= this.width &&
                     y + boxHeight / 2 >= 0 && y - boxHeight / 2 <= this.height;
 
@@ -438,7 +429,6 @@ public class JournalScreen extends Screen {
             int scale = isHovered ? hoverScale : baseScale;
             int targetScale = calculateDynamicScale(living, boxWidth, boxHeight, isHovered ? hoverScale : baseScale);
 
-            // drawMob still handles only per-mob push/pop
             drawMob(context, x, y, targetScale, mouseX, mouseY, living);
 
 
@@ -450,13 +440,8 @@ public class JournalScreen extends Screen {
             plate.hovered = isHovered;
             pendingNameplates.add(plate);
         }
-
-        // ─── NEW: pop once after batch ───
         matrices.pop();
-        // ─── NEW: restore shadows once ───
         dispatcher.setRenderShadows(true);
-
-        // ─── existing nameplate draw ───
         drawNameplate(context, pendingNameplates, client.textRenderer);
     }
 
@@ -474,8 +459,6 @@ public class JournalScreen extends Screen {
                         boolean trimmed = false;
                         int lenA = a.name.length();
                         int lenB = b.name.length();
-
-                        // 1) Trim the longer text first
                         if (lenA > lenB && lenA > 3) {
                             a.trim();
                             a.bounds = a.calculateBounds(renderer);
@@ -485,7 +468,6 @@ public class JournalScreen extends Screen {
                             b.bounds = b.calculateBounds(renderer);
                             trimmed = true;
                         } else {
-                            // 2) If same length (or both candidates), trim both as before
                             if (lenA > 3) {
                                 a.trim();
                                 a.bounds = a.calculateBounds(renderer);
@@ -505,8 +487,6 @@ public class JournalScreen extends Screen {
                 }
             }
         } while (changed);
-
-        // now actually draw all nameplates
         for (Nameplate plate : plates) {
             MatrixStack matrices = context.getMatrices();
             matrices.push();
@@ -577,7 +557,6 @@ public class JournalScreen extends Screen {
         }
         nextButton.mouseClicked(mouseX, mouseY);
         backButton.mouseClicked(mouseX, mouseY);
-        // Don't manually call mouseClicked on widgets you've added via addDrawableChild!
         return super.mouseClicked(mouseX, mouseY, button);
     }
 

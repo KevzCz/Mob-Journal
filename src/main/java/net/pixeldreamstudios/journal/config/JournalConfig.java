@@ -20,13 +20,11 @@ public class JournalConfig {
     public static Set<String> blacklistedNamespaces = new HashSet<>();
     public static Set<Identifier> blacklistedMobs    = new HashSet<>();
     public static ToastPosition toastPosition        = ToastPosition.TOP_RIGHT;
-
-    // New fields
     public static boolean recordDiscoveryTimestamp = true;
     public static boolean showDiscoveryDate        = true;
     public static int     mobCheckInterval         = 40;
     public static double  mobCheckRadius           = 8.0;
-
+    public static boolean requireJournalInInventory = true;
     public enum ToastPosition {
         TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT;
         public static ToastPosition fromString(String value) {
@@ -44,7 +42,6 @@ public class JournalConfig {
             try (FileReader reader = new FileReader(CONFIG_FILE)) {
                 ConfigData data = GSON.fromJson(reader, ConfigData.class);
 
-                // Migrate if missing fields
                 migrateOldConfig(data);
 
                 blacklistedMobs.clear();
@@ -65,6 +62,9 @@ public class JournalConfig {
                 showDiscoveryDate        = data.show_discovery_date;
                 mobCheckInterval         = data.mob_check_interval;
                 mobCheckRadius           = data.mob_check_radius;
+                requireJournalInInventory = data.require_journal_in_inventory == null
+                        ? true
+                        : data.require_journal_in_inventory;
             }
         } catch (Exception e) {
             System.err.println("[Journal] Failed to load config: " + e);
@@ -89,7 +89,7 @@ public class JournalConfig {
         def.mob_check_interval = mobCheckInterval;
         def.mob_check_radius = mobCheckRadius;
         def.current_version = configVersion;
-
+        def.require_journal_in_inventory = requireJournalInInventory;
         try (FileWriter writer = new FileWriter(CONFIG_FILE)) {
             GSON.toJson(def, writer);
         } catch (Exception e) {
@@ -120,7 +120,6 @@ public class JournalConfig {
             data.mob_check_radius = 8.0;
             changed = true;
         }
-        // 🧠 Here's the smart part:
         if (data.record_discovery_timestamp == null) {
             data.record_discovery_timestamp = true;
             changed = true;
@@ -133,7 +132,10 @@ public class JournalConfig {
             data.current_version = configVersion;
             changed = true;
         }
-
+        if (data.require_journal_in_inventory == null) {
+            data.require_journal_in_inventory = true;
+            changed = true;
+        }
         if (changed) {
             try (FileWriter writer = new FileWriter(CONFIG_FILE)) {
                 GSON.toJson(data, writer);
@@ -158,5 +160,7 @@ public class JournalConfig {
         public int          mob_check_interval;
         public double       mob_check_radius;
         public String       current_version;
+
+        public Boolean      require_journal_in_inventory;
     }
 }

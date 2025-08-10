@@ -19,14 +19,13 @@ public class JournalItems {
     public static ItemGroup JOURNAL_TAB;
 
     public static void init() {
-        // ─── Register the journal item ───
+
          JOURNAL_ITEM = Registry.register(
                 Registries.ITEM,
                 Identifier.of(MOD_ID, "journal"),
                 new JournalItem(new Item.Settings().maxCount(1))
         );
 
-        // ─── Create & register the item-group/tab ───
         JOURNAL_TAB = FabricItemGroup.builder()
                 .icon(() -> new ItemStack(JOURNAL_ITEM))
                 .displayName(Text.translatable("itemGroup.journal.tab"))
@@ -34,7 +33,6 @@ public class JournalItems {
                 .build();
         Registry.register(Registries.ITEM_GROUP, Identifier.of(MOD_ID, "tab"), JOURNAL_TAB);
 
-        // ─── Also add to the built-in Tools tab ───
         ItemGroupEvents.modifyEntriesEvent(ItemGroups.TOOLS)
                 .register(entries -> entries.add(JOURNAL_ITEM));
     }

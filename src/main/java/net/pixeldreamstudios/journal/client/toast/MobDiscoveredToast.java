@@ -22,8 +22,7 @@ public class MobDiscoveredToast implements Toast {
 
     private boolean playedSound = false;
     private LivingEntity cachedEntity;
-    private int dynamicWidth = 140; // fallback default
-
+    private int dynamicWidth = 140;
     public MobDiscoveredToast(EntityType<?> entityType, Text description) {
         this.entityType = entityType;
         this.description = description;
@@ -39,7 +38,6 @@ public class MobDiscoveredToast implements Toast {
     public Visibility draw(DrawContext context, ToastManager manager, long startTime) {
         MinecraftClient client = MinecraftClient.getInstance();
 
-        // Lazy-load mob entity
         if (entityType != null && cachedEntity == null) {
             World world = client.world;
             if (world != null) {
@@ -52,7 +50,6 @@ public class MobDiscoveredToast implements Toast {
             }
         }
 
-        // Sound
         if (!playedSound && startTime > 0L) {
             playedSound = true;
             client.getSoundManager().play(PositionedSoundInstance.master(JournalSounds.WRITING, 2.0F));
@@ -62,7 +59,7 @@ public class MobDiscoveredToast implements Toast {
                 JournalConfig.toastPosition == JournalConfig.ToastPosition.BOTTOM_RIGHT;
 
         int spacing = 10;
-        int iconWidth = 40;  // room for mob or item
+        int iconWidth = 40;
         int bookIconWidth = 20;
         int textWidth = client.textRenderer.getWidth(description);
         dynamicWidth = iconWidth + spacing + textWidth + spacing + bookIconWidth;
@@ -81,9 +78,8 @@ public class MobDiscoveredToast implements Toast {
             bookItemX = textX - 25;
         }
 
-        // Mob or book icon
         if (cachedEntity != null) {
-            drawEntity(context, mobX + 15, 5, 5, cachedEntity); // Centered and scaled for 18px
+            drawEntity(context, mobX + 15, 5, 5, cachedEntity);
         } else {
             context.drawItem(JournalItems.JOURNAL_ITEM.getDefaultStack(), mobX + 15, 5);
         }

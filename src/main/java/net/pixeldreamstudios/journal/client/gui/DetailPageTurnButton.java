@@ -38,26 +38,21 @@ public class DetailPageTurnButton {
 
         hovered = isMouseOver(mouseX, mouseY);
 
-        // Update fill animation progress
         if (hovered) {
             fillProgress = Math.min(1.0f, fillProgress + fillSpeed);
         } else {
             fillProgress = Math.max(0.0f, fillProgress - fillSpeed);
         }
 
-        // Textures
         Identifier base = isNext ? ARROW_FLIPPED_TEXTURE : ARROW_TEXTURE;
         Identifier fill = isNext ? ARROW_FLIPPED_HOVER_TEXTURE : ARROW_HOVER_TEXTURE;
 
-        // Draw base arrow
         context.drawTexture(base, x, y, 0, 0, width, height, width, height);
 
-        // Fill overlay
         if (fillProgress > 0) {
             int fillWidth = (int) (width * fillProgress);
 
             if (isNext) {
-                // Fill left to right
                 context.drawTexture(
                         fill,
                         x, y,
@@ -66,7 +61,6 @@ public class DetailPageTurnButton {
                         width, height
                 );
             } else {
-                // Fill right to left
                 int offsetX = width - fillWidth;
                 context.drawTexture(
                         fill,
@@ -79,7 +73,7 @@ public class DetailPageTurnButton {
         }
 
         if (!active) {
-            context.fill(x, y, x + width, y + height, 0x66000000); // disabled darken
+            context.fill(x, y, x + width, y + height, 0x66000000);
         }
 
         if (hovered) {
