@@ -1,7 +1,4 @@
-
-
-
-
+https://www.curseforge.com/minecraft/mc-mods/mob-journal
 
 # 📘 Mob Journal – Custom Mob Descriptions
 
