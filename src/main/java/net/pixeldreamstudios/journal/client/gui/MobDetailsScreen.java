@@ -1,26 +1,21 @@
 package net.pixeldreamstudios.journal.client.gui;
 
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.item.TooltipContext;
 import net.minecraft.client.render.entity.EntityRenderDispatcher;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.component.type.MapIdComponent;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.map.MapState;
-import net.minecraft.item.tooltip.TooltipType;
-import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.text.OrderedText;
-import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
-import net.minecraft.world.World;
+import net.minecraft.util.math.Box;
+import net.minecraft.registry.Registries;
 import net.pixeldreamstudios.journal.client.JournalClientData;
 import net.pixeldreamstudios.journal.network.RequestMobDropsPayload;
 import net.pixeldreamstudios.journal.network.ToggleFavoritePayload;
@@ -34,8 +29,9 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 public class MobDetailsScreen extends Screen {
-    private static final Identifier LEFT_PAGE = Identifier.of("journal", "textures/book.png");
-    private static final Identifier RIGHT_PAGE = Identifier.of("journal", "textures/book_flipped.png");
+    private static final Identifier LEFT_PAGE = new Identifier("journal", "textures/book.png");
+    private static final Identifier RIGHT_PAGE = new Identifier("journal", "textures/book_flipped.png");
+
     private final int returnPage;
     private boolean isFavorite;
     private ButtonWidget favButton;
@@ -58,11 +54,13 @@ public class MobDetailsScreen extends Screen {
     private int expandButtonY = -1;
     private int expandButtonWidth = -1;
     private int expandButtonHeight = -1;
+
     private static class CachedPose {
         float limbPos, yaw;
         int age;
         long lastUpdated;
     }
+
     public MobDetailsScreen(Identifier mobId, int returnPage, String returnQuery) {
         super(Text.literal("Mob Info"));
         this.mobId = mobId;
@@ -70,14 +68,12 @@ public class MobDetailsScreen extends Screen {
         this.returnQuery = returnQuery;
     }
 
-
     public void rebuildWithDrops() {
         List<List<ParsedLine>> allLines = mob != null
                 ? net.pixeldreamstudios.journal.data.MobDescriptionLoader.getDescription(mobId, mob)
                 : List.of(List.of(new ParsedLine(Text.literal("§cUnknown mob"))));
 
         List<ParsedLine> dropIcons = new ArrayList<>();
-
         int maxDrops = showAllDrops ? JournalClientData.LAST_DROPS.size() : Math.min(6, JournalClientData.LAST_DROPS.size());
         for (int i = 0; i < maxDrops; i++) {
             ItemStack stack = JournalClientData.LAST_DROPS.get(i);
@@ -85,7 +81,6 @@ public class MobDetailsScreen extends Screen {
             icon.scale = 1.0f;
             dropIcons.add(icon);
         }
-
         if (dropIcons.isEmpty()) {
             dropIcons.add(new ParsedLine(Text.literal("§7(No known drops)")));
         }
@@ -106,8 +101,6 @@ public class MobDetailsScreen extends Screen {
         updatePageButtons();
     }
 
-
-
     private String formatModName(String namespace) {
         String[] parts = namespace.split("_");
         StringBuilder builder = new StringBuilder();
@@ -123,36 +116,32 @@ public class MobDetailsScreen extends Screen {
 
     @Override
     protected void init() {
-        World world = MinecraftClient.getInstance().world;
+        var mc = MinecraftClient.getInstance();
+        var world = mc.world;
         this.isFavorite = JournalClientData.FAVORITE_MOBS.contains(mobId);
 
         if (world != null) {
             LivingEntity cached = MobEntityCache.get(mobId, world);
-            if (cached != null) {
-                this.mob = cached;
-            }
+            if (cached != null) this.mob = cached;
         }
 
-
-
         JournalClientData.LAST_DROPS.clear();
-        ClientPlayNetworking.send(new RequestMobDropsPayload(mobId));
+        RequestMobDropsPayload.sendToServer(mobId);
 
         List<List<ParsedLine>> allLines = mob != null
                 ? net.pixeldreamstudios.journal.data.MobDescriptionLoader.getDescription(mobId, mob)
                 : List.of(List.of(new ParsedLine(Text.literal("§cUnknown mob"))));
-         if (MarkdownParser.containsPlaceholder(allLines, "{getLootDrops}")) {
+
+        if (MarkdownParser.containsPlaceholder(allLines, "{getLootDrops}")) {
             List<ParsedLine> dropIcons = new ArrayList<>();
             for (ItemStack stack : JournalClientData.LAST_DROPS) {
                 ParsedLine icon = new ParsedLine(stack);
                 icon.scale = 1.0f;
                 dropIcons.add(icon);
             }
-
             if (dropIcons.isEmpty()) {
                 dropIcons.add(new ParsedLine(Text.literal("§7(No known drops)")));
             }
-
             MarkdownParser.replacePlaceholder(allLines, "{getLootDrops}", dropIcons);
         }
 
@@ -163,26 +152,21 @@ public class MobDetailsScreen extends Screen {
         int totalWidth = pageWidth * 2;
         int x = (this.width - totalWidth) / 2;
         int y = (this.height - pageHeight) / 2;
-        int mobSlotX = x + 145;
-        int mobSlotY = y + 5;
 
         this.favButton = ButtonWidget.builder(
                 Text.literal(isFavorite ? "★" : "☆").styled(style -> style.withColor(0xFFFF55)),
                 btn -> {
                     isFavorite = !isFavorite;
-                    ClientPlayNetworking.send(new ToggleFavoritePayload(mobId, isFavorite));
+                    ToggleFavoritePayload.sendToServer(mobId, isFavorite);
                     btn.setMessage(Text.literal(isFavorite ? "★" : "☆").styled(style -> style.withColor(0xFFFF55)));
                 }
-        ).dimensions(0, 0, 18, 18).tooltip(
-                Tooltip.of(Text.literal("Toggle Favorite"))
-        ).build();
+        ).dimensions(0, 0, 18, 18).tooltip(Tooltip.of(Text.literal("Toggle Favorite"))).build();
         this.addDrawableChild(favButton);
-        int buttonY = y + pageHeight - 20;
 
+        int buttonY = y + pageHeight - 20;
         backButton = new PageTurnButton(x + 101, buttonY, false, () -> {
             MinecraftClient.getInstance().setScreen(new JournalScreen(returnPage, returnQuery));
         });
-
 
         backDescButton = new DetailPageTurnButton(x + 385, buttonY, false, () -> {
             descPage--;
@@ -205,7 +189,6 @@ public class MobDetailsScreen extends Screen {
         int wrapWidth = (int) (descSlotW / baseScale) - 10;
 
         TextRenderer renderer = MinecraftClient.getInstance().textRenderer;
-
         List<List<ParsedLine>> currentPage = new ArrayList<>();
         int currentHeight = 0;
         boolean insideLootSection = false;
@@ -215,9 +198,10 @@ public class MobDetailsScreen extends Screen {
 
             boolean rowIsLoot = inputRow.stream().anyMatch(part ->
                     part.isItem() && JournalClientData.LAST_DROPS.stream()
-                            .anyMatch(stack -> ItemStack.areItemsAndComponentsEqual(stack, part.item))
+                            .anyMatch(stack -> ItemStack.areEqual(stack, part.item))
             );
-          if (inputRow.stream().anyMatch(p -> p.isText() && p.text.getString().replace("§", "").equalsIgnoreCase("Drops"))) {
+
+            if (inputRow.stream().anyMatch(p -> p.isText() && p.text.getString().replace("§", "").equalsIgnoreCase("Drops"))) {
                 insideLootSection = true;
             }
 
@@ -227,12 +211,8 @@ public class MobDetailsScreen extends Screen {
 
             for (ParsedLine part : inputRow) {
                 float scale = part.scale <= 0 ? 1.0f : part.scale;
-                int width = part.isText()
-                        ? renderer.getWidth(part.text)
-                        : (int) (16 * scale);
-                int height = part.isText()
-                        ? renderer.fontHeight
-                        : (int) (16 * scale);
+                int width = part.isText() ? renderer.getWidth(part.text) : (int) (16 * scale);
+                int height = part.isText() ? renderer.fontHeight : (int) (16 * scale);
 
                 if (currentLineWidth + width > wrapWidth && !currentLine.isEmpty()) {
                     if (currentHeight + currentLineHeight > maxHeight) {
@@ -285,13 +265,10 @@ public class MobDetailsScreen extends Screen {
         if (!currentPage.isEmpty()) {
             paginatedLines.add(currentPage);
         }
-
         if (paginatedLines.isEmpty()) {
             paginatedLines.add(List.of(List.of(new ParsedLine(Text.literal("§cNo content")))));
         }
     }
-
-
 
     private void updatePageButtons() {
         backDescButton.visible = descPage > 0;
@@ -311,7 +288,6 @@ public class MobDetailsScreen extends Screen {
                 return true;
             }
         }
-
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
@@ -432,7 +408,7 @@ public class MobDetailsScreen extends Screen {
 
                         if (mouseX >= drawX && mouseX <= drawX + iconSize &&
                                 mouseY >= drawY && mouseY <= drawY + iconSize) {
-                            List<Text> tooltip = getEffectiveTooltip(part, part.item, mouseX, mouseY);
+                            List<Text> tooltip = getEffectiveTooltip(part, part.item);
                             context.drawTooltip(renderer, tooltip, mouseX, mouseY);
                         }
 
@@ -465,49 +441,29 @@ public class MobDetailsScreen extends Screen {
         context.draw();
     }
 
-
-
-
-
-
-
-
     private final Map<LivingEntity, Boolean> animatedEntities = new WeakHashMap<>();
-    private List<Text> getEffectiveTooltip(ParsedLine part, ItemStack item, int mouseX, int mouseY) {
+
+    private List<Text> getEffectiveTooltip(ParsedLine part, ItemStack item) {
         if (part.isItem()) {
-           if (part.hasExplicitTooltip && part.tooltip != null && !part.tooltip.getString().isBlank()) {
+            if (part.hasExplicitTooltip && part.tooltip != null && !part.tooltip.getString().isBlank()) {
                 return List.of(part.tooltip);
             }
 
-            return item.getTooltip(
-                    new Item.TooltipContext() {
-                        @Override public RegistryWrapper.WrapperLookup getRegistryLookup() { return null; }
-                        @Override public float getUpdateTickRate() { return 0; }
-                        @Override public MapState getMapState(MapIdComponent component) { return null; }
+            var mc = MinecraftClient.getInstance();
+            TooltipContext ctx = mc.options.advancedItemTooltips
+                    ? TooltipContext.Default.ADVANCED
+                    : TooltipContext.Default.BASIC;
 
-                        public boolean isAdvanced() {
-                            return MinecraftClient.getInstance().options.advancedItemTooltips;
-                        }
-
-                        public boolean isCreative() {
-                            return MinecraftClient.getInstance().player != null &&
-                                    MinecraftClient.getInstance().player.isCreative();
-                        }
-                    },
-                    MinecraftClient.getInstance().player,
-                    MinecraftClient.getInstance().options.advancedItemTooltips
-                            ? TooltipType.ADVANCED
-                            : TooltipType.BASIC
-            );
+            if (mc.player != null && mc.player.isCreative()) {
+                ctx = ((TooltipContext.Default) ctx).withCreative();
+            }
+            return item.getTooltip(mc.player, ctx);
         }
-
 
         if (part.tooltip != null && !part.tooltip.getString().isBlank()) {
             return List.of(part.tooltip);
         }
-
         return List.of();
-
     }
 
     private void drawMob(DrawContext context, int x, int y, int scale, int mouseX, int mouseY, LivingEntity entity) {
@@ -530,7 +486,7 @@ public class MobDetailsScreen extends Screen {
             if (updatePose || now - pose.lastUpdated > 250) {
                 pose.limbPos = (now % 10000L) / 1000.0f * 3f;
                 pose.yaw = (now % 8000L) / 8000.0f * 360F;
-                pose.age = (int)(now / 50L);
+                pose.age = (int) (now / 50L);
                 pose.lastUpdated = now;
             }
 
@@ -542,26 +498,18 @@ public class MobDetailsScreen extends Screen {
             entity.headYaw = pose.yaw;
             entity.age = pose.age;
 
-
             dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, 1.0f, matrices, context.getVertexConsumers(), 0xF000F0);
-
         } catch (Throwable t) {
-
             matrices.pop();
-
             TextRenderer renderer = client.textRenderer;
             String errorText = "Can't render mob";
             int textWidth = renderer.getWidth(errorText);
-
             context.drawTextWithShadow(renderer, Text.literal(errorText), x - textWidth / 2, y - 10, 0xFF5555);
             return;
         }
         dispatcher.setRenderShadows(true);
         matrices.pop();
     }
-
-
-
 
     @Override
     public boolean shouldPause() {

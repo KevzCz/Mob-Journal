@@ -1,28 +1,56 @@
 package net.pixeldreamstudios.journal.network;
 
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 
-public record OpenJournalPayload() implements CustomPayload {
-
-    public static final Id<OpenJournalPayload> ID =
-            new Id<>(Identifier.of("journal", "open_request"));
-
+public final class OpenJournalPayload {
+    public static final Identifier ID = new Identifier("journal", "open_request");
     public static final OpenJournalPayload INSTANCE = new OpenJournalPayload();
 
-    public static final PacketCodec<RegistryByteBuf, OpenJournalPayload> CODEC =
-            PacketCodec.of(
-                    (buf, payload) -> {
-                    },
-                    buf -> INSTANCE
-            );
+    private OpenJournalPayload() {}
 
+    public static OpenJournalPayload read(PacketByteBuf buf) {
+        return INSTANCE;
+    }
 
-    @Override
-    public Id<? extends CustomPayload> getId() {
-        return ID;
+    public void write(PacketByteBuf buf) {
+    }
+
+    public static void sendToServer() {
+        PacketByteBuf buf = PacketByteBufs.create();
+        INSTANCE.write(buf);
+        ClientPlayNetworking.send(ID, buf);
+    }
+
+    public static void sendToClient(ServerPlayerEntity player) {
+        PacketByteBuf buf = PacketByteBufs.create();
+        INSTANCE.write(buf);
+        ServerPlayNetworking.send(player, ID, buf);
+    }
+
+    public interface C2SHandler {
+        void handle(ServerPlayerEntity player, OpenJournalPayload payload);
+    }
+
+    public static void registerC2S(C2SHandler handler) {
+        ServerPlayNetworking.registerGlobalReceiver(ID, (server, player, netHandler, buf, responseSender) -> {
+            OpenJournalPayload payload = read(buf);
+            server.execute(() -> handler.handle(player, payload));
+        });
+    }
+
+    public interface S2CHandler {
+        void handle(OpenJournalPayload payload);
+    }
+
+    public static void registerS2C(S2CHandler handler) {
+        ClientPlayNetworking.registerGlobalReceiver(ID, (client, netHandler, buf, responseSender) -> {
+            OpenJournalPayload payload = read(buf);
+            client.execute(() -> handler.handle(payload));
+        });
     }
 }

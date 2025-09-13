@@ -1,29 +1,28 @@
 package net.pixeldreamstudios.journal.data;
 
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import dev.onyxstudios.cca.api.v3.component.ComponentV3;
+import dev.onyxstudios.cca.api.v3.component.CopyableComponent;
+import dev.onyxstudios.cca.api.v3.component.sync.AutoSyncedComponent;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
-import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.network.DiscoveredMobPayload;
 import net.pixeldreamstudios.journal.network.SyncJournalPayload;
-import org.ladysnake.cca.api.v3.component.ComponentV3;
-import org.ladysnake.cca.api.v3.component.sync.AutoSyncedComponent;
-import org.ladysnake.cca.api.v3.entity.RespawnableComponent;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class JournalComponent implements ComponentV3, AutoSyncedComponent, RespawnableComponent<JournalComponent> {
+public class JournalComponent implements ComponentV3, AutoSyncedComponent, CopyableComponent<JournalComponent> {
     private final Map<Identifier, Long> discovered = new HashMap<>();
     private ServerPlayerEntity owner;
 
     public JournalComponent(PlayerEntity player) {
-        if (player instanceof ServerPlayerEntity serverPlayer) {
-            this.owner = serverPlayer;
+        if (player instanceof ServerPlayerEntity sp) {
+            this.owner = sp;
         }
     }
 
@@ -37,15 +36,14 @@ public class JournalComponent implements ComponentV3, AutoSyncedComponent, Respa
         long timestamp = JournalConfig.recordDiscoveryTimestamp
                 ? owner.server.getOverworld().getTime()
                 : -1L;
+
         discovered.put(id, timestamp);
 
         if (isServerSide()) {
-            ServerPlayNetworking.send(owner, new DiscoveredMobPayload(id, timestamp));
+            DiscoveredMobPayload.sendToClient(owner, id, timestamp);
         }
-
         return true;
     }
-
 
     private boolean hasReceivedJournal = false;
 
@@ -74,12 +72,12 @@ public class JournalComponent implements ComponentV3, AutoSyncedComponent, Respa
     }
 
     @Override
-    public void readFromNbt(NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup) {
+    public void readFromNbt(NbtCompound tag) {
         discovered.clear();
         if (tag.contains("discoveries")) {
-            NbtList list = tag.getList("discoveries", NbtCompound.COMPOUND_TYPE);
-            for (var elem : list) {
-                var c = (NbtCompound) elem;
+            NbtList list = tag.getList("discoveries", NbtElement.COMPOUND_TYPE);
+            for (int i = 0; i < list.size(); i++) {
+                NbtCompound c = list.getCompound(i);
                 Identifier id = Identifier.tryParse(c.getString("id"));
                 long t = c.getLong("time");
                 if (id != null) discovered.put(id, t);
@@ -89,10 +87,10 @@ public class JournalComponent implements ComponentV3, AutoSyncedComponent, Respa
     }
 
     @Override
-    public void writeToNbt(NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup) {
+    public void writeToNbt(NbtCompound tag) {
         NbtList list = new NbtList();
         for (var e : discovered.entrySet()) {
-            var c = new NbtCompound();
+            NbtCompound c = new NbtCompound();
             c.putString("id", e.getKey().toString());
             c.putLong("time", e.getValue());
             list.add(c);
@@ -102,16 +100,13 @@ public class JournalComponent implements ComponentV3, AutoSyncedComponent, Respa
     }
 
     @Override
-    public void copyForRespawn(JournalComponent original,
-                               RegistryWrapper.WrapperLookup registryLookup,
-                               boolean lossless, boolean keepInventory, boolean sameCharacter) {
-        this.owner = original.owner.server
-                .getPlayerManager()
-                .getPlayer(original.owner.getUuid());
+    public void copyFrom(JournalComponent other) {
         this.discovered.clear();
-        this.discovered.putAll(original.discovered);
+        this.discovered.putAll(other.discovered);
+        this.hasReceivedJournal = other.hasReceivedJournal;
+
         if (isServerSide()) {
-            ServerPlayNetworking.send(owner, new SyncJournalPayload(discovered));
+            SyncJournalPayload.sendToClient(owner, discovered);
         }
     }
 }

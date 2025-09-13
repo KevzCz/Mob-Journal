@@ -17,11 +17,8 @@ public class JournalItem extends Item {
     public TypedActionResult<ItemStack> use(World world, PlayerEntity player, Hand hand) {
         if (world.isClient) {
             net.pixeldreamstudios.journal.client.JournalClientData.shouldOpenJournalScreen = true;
-            net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(OpenJournalPayload.INSTANCE);
+            OpenJournalPayload.sendToServer();
         }
-
         return TypedActionResult.success(player.getStackInHand(hand));
     }
-
-
 }

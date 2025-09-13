@@ -1,26 +1,24 @@
 package net.pixeldreamstudios.journal.data;
 
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import dev.onyxstudios.cca.api.v3.component.ComponentV3;
+import dev.onyxstudios.cca.api.v3.component.CopyableComponent;
+import dev.onyxstudios.cca.api.v3.component.sync.AutoSyncedComponent;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import net.pixeldreamstudios.journal.network.SyncMobStatsPayload;
-import org.ladysnake.cca.api.v3.component.ComponentV3;
-import org.ladysnake.cca.api.v3.component.sync.AutoSyncedComponent;
-import org.ladysnake.cca.api.v3.entity.RespawnableComponent;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class MobStatTrackerComponent implements ComponentV3, AutoSyncedComponent, RespawnableComponent<MobStatTrackerComponent> {
+public class MobStatTrackerComponent implements ComponentV3, AutoSyncedComponent, CopyableComponent<MobStatTrackerComponent> {
     private final Map<Identifier, MobStat> stats = new HashMap<>();
     private ServerPlayerEntity owner;
 
     public MobStatTrackerComponent(PlayerEntity player) {
-        if (player instanceof ServerPlayerEntity serverPlayer) {
-            this.owner = serverPlayer;
+        if (player instanceof ServerPlayerEntity sp) {
+            this.owner = sp;
         }
     }
 
@@ -34,12 +32,16 @@ public class MobStatTrackerComponent implements ComponentV3, AutoSyncedComponent
 
     public void incrementKills(Identifier id) {
         stats.put(id, get(id).incrementKills());
-        if (isServerSide()) JournalComponents.MOB_STATS.sync(owner);
+        if (isServerSide()) {
+            JournalComponents.MOB_STATS.sync(owner);
+        }
     }
 
     public void incrementDeaths(Identifier id) {
         stats.put(id, get(id).incrementDeaths());
-        if (isServerSide()) JournalComponents.MOB_STATS.sync(owner);
+        if (isServerSide()) {
+            JournalComponents.MOB_STATS.sync(owner);
+        }
     }
 
     public Map<Identifier, MobStat> getAllStats() {
@@ -47,7 +49,7 @@ public class MobStatTrackerComponent implements ComponentV3, AutoSyncedComponent
     }
 
     @Override
-    public void readFromNbt(NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup) {
+    public void readFromNbt(NbtCompound tag) {
         stats.clear();
         if (!tag.contains("mobStats")) return;
 
@@ -64,7 +66,7 @@ public class MobStatTrackerComponent implements ComponentV3, AutoSyncedComponent
     }
 
     @Override
-    public void writeToNbt(NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup) {
+    public void writeToNbt(NbtCompound tag) {
         NbtCompound data = new NbtCompound();
         for (Map.Entry<Identifier, MobStat> entry : stats.entrySet()) {
             NbtCompound value = new NbtCompound();
@@ -76,14 +78,12 @@ public class MobStatTrackerComponent implements ComponentV3, AutoSyncedComponent
     }
 
     @Override
-    public void copyForRespawn(MobStatTrackerComponent original, RegistryWrapper.WrapperLookup registryLookup, boolean lossless, boolean keepInventory, boolean sameCharacter) {
-        this.owner = original.owner.server.getPlayerManager().getPlayer(original.owner.getUuid());
-
+    public void copyFrom(MobStatTrackerComponent other) {
         this.stats.clear();
-        this.stats.putAll(original.stats);
+        this.stats.putAll(other.stats);
 
         if (isServerSide()) {
-            ServerPlayNetworking.send(owner, new SyncMobStatsPayload(getAllStats()));
+            SyncMobStatsPayload.sendToClient(owner, getAllStats());
         }
     }
 }

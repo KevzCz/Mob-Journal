@@ -1,14 +1,10 @@
-// src/main/java/net/pixeldreamstudios/journal/client/MobUnlockTracker.java
 package net.pixeldreamstudios.journal.client;
 
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Box;
-import net.minecraft.registry.Registries;
-import io.netty.buffer.Unpooled;
 import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.network.UnlockMobPayload;
 
@@ -26,16 +22,16 @@ public class MobUnlockTracker {
     }
 
     public static void tick() {
-        var client = MinecraftClient.getInstance();
-        var player = client.player;
-        if (player == null || client.world == null) return;
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player == null || client.world == null) return;
 
+        var player = client.player;
         var nearby = client.world.getEntitiesByClass(
                 LivingEntity.class,
-                new Box(player.getPos(), player.getPos())
-                        .expand(JournalConfig.mobCheckRadius),
+                new Box(player.getPos(), player.getPos()).expand(JournalConfig.mobCheckRadius),
                 e -> e != player && e.isAlive()
         );
+
         List<Identifier> toUnlock = new ArrayList<>();
         for (var mob : nearby) {
             Identifier id = Registries.ENTITY_TYPE.getId(mob.getType());
@@ -43,15 +39,18 @@ public class MobUnlockTracker {
                 toUnlock.add(id);
             }
         }
+
         if (toUnlock.isEmpty()) {
             tickCounter = 0;
             return;
         }
+
         tickCounter++;
         if (tickCounter < JournalConfig.mobCheckInterval) return;
         tickCounter = 0;
-        for (var id : toUnlock) {
-            ClientPlayNetworking.send(new UnlockMobPayload(id));
+
+        for (Identifier id : toUnlock) {
+            UnlockMobPayload.sendToServer(id);
             alreadySent.add(id);
         }
     }
