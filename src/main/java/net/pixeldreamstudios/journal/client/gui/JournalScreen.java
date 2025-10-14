@@ -120,7 +120,8 @@ public class JournalScreen extends Screen {
                 return entityType != null ? (LivingEntity) entityType.create(MinecraftClient.getInstance().world) : null;
             });
 
-            if (!(living instanceof LivingEntity entity)) continue;
+            if (!(living instanceof LivingEntity)) continue;
+            LivingEntity entity = (LivingEntity) living;
 
             String entityName = entity.getDisplayName().getString().toLowerCase();
             if (nameMatch || entityName.contains(nameFilter) || nameFilter.isEmpty()) {
