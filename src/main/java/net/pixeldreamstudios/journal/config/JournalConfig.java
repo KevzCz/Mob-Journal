@@ -17,14 +17,27 @@ public class JournalConfig {
 
     public static final String configVersion = getCurrentModVersion();
 
-    public static Set<String> blacklistedNamespaces = new HashSet<>();
-    public static Set<Identifier> blacklistedMobs    = new HashSet<>();
-    public static ToastPosition toastPosition        = ToastPosition.TOP_RIGHT;
-    public static boolean recordDiscoveryTimestamp = true;
-    public static boolean showDiscoveryDate        = true;
-    public static int     mobCheckInterval         = 40;
-    public static double  mobCheckRadius           = 8.0;
+    public enum DiscoveryMode {
+        NEAR,
+        HIT,
+        KILL,
+        INTERACT
+    }
+
+    public static Set<String>     blacklistedNamespaces     = new HashSet<>();
+    public static Set<Identifier> blacklistedMobs           = new HashSet<>();
+    public static ToastPosition   toastPosition             = ToastPosition.TOP_RIGHT;
+    public static boolean         recordDiscoveryTimestamp  = true;
+    public static boolean         showDiscoveryDate         = true;
+
+    public static int    mobCheckInterval = 40;
+    public static double mobCheckRadius   = 8.0;
+
     public static boolean requireJournalInInventory = true;
+
+    public static DiscoveryMode discoveryMode      = DiscoveryMode.NEAR;
+    public static boolean       enableTamedTrigger = false;
+
     public enum ToastPosition {
         TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT;
         public static ToastPosition fromString(String value) {
@@ -57,14 +70,15 @@ public class JournalConfig {
                     }
                 }
 
-                toastPosition            = ToastPosition.fromString(data.toast_position);
-                recordDiscoveryTimestamp = data.record_discovery_timestamp;
-                showDiscoveryDate        = data.show_discovery_date;
-                mobCheckInterval         = data.mob_check_interval;
-                mobCheckRadius           = data.mob_check_radius;
-                requireJournalInInventory = data.require_journal_in_inventory == null
-                        ? true
-                        : data.require_journal_in_inventory;
+                toastPosition             = ToastPosition.fromString(data.toast_position);
+                recordDiscoveryTimestamp  = getOrDefault(data.record_discovery_timestamp, true);
+                showDiscoveryDate         = getOrDefault(data.show_discovery_date, true);
+                mobCheckInterval          = data.mob_check_interval == 0 ? 40 : data.mob_check_interval;
+                mobCheckRadius            = data.mob_check_radius == 0.0 ? 8.0 : data.mob_check_radius;
+                requireJournalInInventory = getOrDefault(data.require_journal_in_inventory, true);
+
+                discoveryMode      = parseDiscoveryMode(data.discovery_mode);
+                enableTamedTrigger = getOrDefault(data.enable_tamed_trigger, false);
             }
         } catch (Exception e) {
             System.err.println("[Journal] Failed to load config: " + e);
@@ -72,8 +86,7 @@ public class JournalConfig {
     }
 
     public static boolean isBlacklisted(Identifier id) {
-        return blacklistedMobs.contains(id)
-                || blacklistedNamespaces.contains(id.getNamespace());
+        return blacklistedMobs.contains(id) || blacklistedNamespaces.contains(id.getNamespace());
     }
 
     private static void saveDefault() {
@@ -90,6 +103,12 @@ public class JournalConfig {
         def.mob_check_radius = mobCheckRadius;
         def.current_version = configVersion;
         def.require_journal_in_inventory = requireJournalInInventory;
+
+        def.discovery_mode = "NEAR";
+        def.enable_tamed_trigger = false;
+
+        def.discovery_mode_options = List.of("NEAR","HIT","INTERACT","KILL");
+
         try (FileWriter writer = new FileWriter(CONFIG_FILE)) {
             GSON.toJson(def, writer);
         } catch (Exception e) {
@@ -136,6 +155,19 @@ public class JournalConfig {
             data.require_journal_in_inventory = true;
             changed = true;
         }
+        if (data.discovery_mode == null) {
+            data.discovery_mode = "NEAR";
+            changed = true;
+        }
+        if (data.enable_tamed_trigger == null) {
+            data.enable_tamed_trigger = false;
+            changed = true;
+        }
+        if (data.discovery_mode_options == null || data.discovery_mode_options.isEmpty()) {
+            data.discovery_mode_options = List.of("NEAR","HIT","INTERACT","KILL");
+            changed = true;
+        }
+
         if (changed) {
             try (FileWriter writer = new FileWriter(CONFIG_FILE)) {
                 GSON.toJson(data, writer);
@@ -146,10 +178,22 @@ public class JournalConfig {
         }
     }
 
+    private static DiscoveryMode parseDiscoveryMode(String value) {
+        if (value == null) return DiscoveryMode.NEAR;
+        try {
+            return DiscoveryMode.valueOf(value.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            return DiscoveryMode.NEAR;
+        }
+    }
 
     private static String getCurrentModVersion() {
         Optional<ModContainer> mod = FabricLoader.getInstance().getModContainer("journal");
         return mod.map(container -> container.getMetadata().getVersion().getFriendlyString()).orElse("unknown");
+    }
+
+    private static boolean getOrDefault(Boolean b, boolean d) {
+        return b == null ? d : b;
     }
 
     private static class ConfigData {
@@ -160,7 +204,11 @@ public class JournalConfig {
         public int          mob_check_interval;
         public double       mob_check_radius;
         public String       current_version;
-
         public Boolean      require_journal_in_inventory;
+
+        public String  discovery_mode;
+        public Boolean enable_tamed_trigger;
+
+        public List<String> discovery_mode_options;
     }
 }

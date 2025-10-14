@@ -8,7 +8,11 @@
 		"LootTableEntryAccessor",
 		"ItemEntryAccessor",
 		"CombinedEntryAccessor",
-		"LimbAnimatorAccessor"
+		"LimbAnimatorAccessor",
+		"ClientPlayerInteractionManagerMixin",
+		"ClientPlayNetworkHandlerMixin",
+		"TameableEntityMixin",
+		"AbstractHorseEntityMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

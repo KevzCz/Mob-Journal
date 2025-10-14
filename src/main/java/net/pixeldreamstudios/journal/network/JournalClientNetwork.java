@@ -129,7 +129,6 @@ public class JournalClientNetwork {
                     }
                 }
             }
-            MobUnlockTracker.tick();
         });
     }
 }
