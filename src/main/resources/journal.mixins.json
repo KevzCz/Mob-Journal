@@ -9,10 +9,12 @@
 		"ItemEntryAccessor",
 		"CombinedEntryAccessor",
 		"LimbAnimatorAccessor",
-		"ClientPlayerInteractionManagerMixin",
-		"ClientPlayNetworkHandlerMixin",
 		"TameableEntityMixin",
 		"AbstractHorseEntityMixin"
+	],
+	"client": [
+		"ClientPlayerInteractionManagerMixin",
+		"ClientPlayNetworkHandlerMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
