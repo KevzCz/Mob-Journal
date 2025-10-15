@@ -13,8 +13,8 @@
 		"AbstractHorseEntityMixin"
 	],
 	"client": [
-		"ClientPlayerInteractionManagerMixin",
-		"ClientPlayNetworkHandlerMixin"
+		"client.ClientPlayerInteractionManagerMixin",
+		"client.ClientPlayNetworkHandlerMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
