@@ -35,11 +35,17 @@ public final class SyncJournalPayload {
     }
 
     public void write(PacketByteBuf buf) {
-        buf.writeInt(discoveries.size());
+        Map<Identifier, Long> validEntries = new HashMap<>();
         for (Map.Entry<Identifier, Long> e : discoveries.entrySet()) {
-            if (e.getKey() == null) continue;
+            if (e.getKey() != null && e.getValue() != null) {
+                validEntries.put(e.getKey(), e.getValue());
+            }
+        }
+
+        buf.writeInt(validEntries.size());
+        for (Map.Entry<Identifier, Long> e : validEntries.entrySet()) {
             buf.writeIdentifier(e.getKey());
-            buf.writeLong(e.getValue() == null ? -1L : e.getValue());
+            buf.writeLong(e.getValue());
         }
     }
 
