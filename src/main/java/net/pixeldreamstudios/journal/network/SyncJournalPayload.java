@@ -27,14 +27,18 @@ public record SyncJournalPayload(Map<Identifier, Long> discoveries) implements C
     }
 
     public void write(RegistryByteBuf buf) {
-        buf.writeInt(discoveries.size());
-        for (var e : discoveries.entrySet()) {
-            if (e.getKey() == null) continue;
+        var entries = new java.util.ArrayList<>(discoveries.entrySet());
+
+        var validEntries = entries.stream()
+                .filter(e -> e.getKey() != null && e.getValue() != null)
+                .toList();
+
+        buf.writeInt(validEntries.size());
+        for (var e : validEntries) {
             buf.writeIdentifier(e.getKey());
-            buf.writeLong(e.getValue() == null ? -1L : e.getValue());
+            buf.writeLong(e.getValue());
         }
     }
-
 
     @Override
     public Id<? extends CustomPayload> getId() {
