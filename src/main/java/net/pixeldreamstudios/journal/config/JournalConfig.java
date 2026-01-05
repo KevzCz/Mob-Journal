@@ -34,6 +34,7 @@ public class JournalConfig {
     public static double mobCheckRadius   = 8.0;
 
     public static boolean requireJournalInInventory = true;
+    public static boolean giveJournalOnJoin         = true;
 
     public static DiscoveryMode discoveryMode      = DiscoveryMode.NEAR;
     public static boolean       enableTamedTrigger = false;
@@ -74,8 +75,9 @@ public class JournalConfig {
                 recordDiscoveryTimestamp  = getOrDefault(data.record_discovery_timestamp, true);
                 showDiscoveryDate         = getOrDefault(data.show_discovery_date, true);
                 mobCheckInterval          = data.mob_check_interval == 0 ? 40 : data.mob_check_interval;
-                mobCheckRadius            = data.mob_check_radius == 0.0 ? 8.0 : data.mob_check_radius;
+                mobCheckRadius            = data.mob_check_radius == 0.0 ?  8.0 : data.mob_check_radius;
                 requireJournalInInventory = getOrDefault(data.require_journal_in_inventory, true);
+                giveJournalOnJoin         = getOrDefault(data.give_journal_on_join, true);
 
                 discoveryMode      = parseDiscoveryMode(data.discovery_mode);
                 enableTamedTrigger = getOrDefault(data.enable_tamed_trigger, false);
@@ -103,6 +105,7 @@ public class JournalConfig {
         def.mob_check_radius = mobCheckRadius;
         def.current_version = configVersion;
         def.require_journal_in_inventory = requireJournalInInventory;
+        def.give_journal_on_join = giveJournalOnJoin;
 
         def.discovery_mode = "NEAR";
         def.enable_tamed_trigger = false;
@@ -155,6 +158,10 @@ public class JournalConfig {
             data.require_journal_in_inventory = true;
             changed = true;
         }
+        if (data.give_journal_on_join == null) {
+            data.give_journal_on_join = true;
+            changed = true;
+        }
         if (data.discovery_mode == null) {
             data.discovery_mode = "NEAR";
             changed = true;
@@ -173,7 +180,7 @@ public class JournalConfig {
                 GSON.toJson(data, writer);
                 System.out.println("[Journal] Config updated to version " + configVersion);
             } catch (Exception e) {
-                System.err.println("[Journal] Failed to migrate config: " + e);
+                System.err.println("[Journal] Failed to migrate config:  " + e);
             }
         }
     }
@@ -205,6 +212,7 @@ public class JournalConfig {
         public double       mob_check_radius;
         public String       current_version;
         public Boolean      require_journal_in_inventory;
+        public Boolean      give_journal_on_join;
 
         public String  discovery_mode;
         public Boolean enable_tamed_trigger;

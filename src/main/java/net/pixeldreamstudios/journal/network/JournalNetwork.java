@@ -52,7 +52,7 @@ public class JournalNetwork {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayerEntity player = handler.getPlayer();
             var journal = JournalComponents.JOURNAL.get(player);
-            if (!journal.hasReceivedJournal()) {
+            if (JournalConfig.giveJournalOnJoin && !journal.hasReceivedJournal()) {
                 player.giveItemStack(new ItemStack(JournalItems.JOURNAL_ITEM));
                 journal.setReceivedJournal(true);
             }
