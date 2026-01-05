@@ -575,13 +575,13 @@ public class MobDetailsScreen extends Screen {
             float speedAfter = entity.limbAnimator.getSpeed();
             float posAfter = entity.limbAnimator.getPos();
 
-            System.out.println("[MobDetails] Mob:  " + mobId +
-                    " | TargetSpeed: " + targetSpeed +
-                    " | Speed Before: " + speedBefore +
-                    " | Speed After:  " + speedAfter +
-                    " | Pos Before:  " + posBefore +
-                    " | Pos After:  " + posAfter +
-                    " | Pos Delta: " + (posAfter - posBefore));
+//            System.out.println("[MobDetails] Mob: " + mobId +
+//                    " | TargetSpeed: " + targetSpeed +
+//                    " | Speed Before: " + speedBefore +
+//                    " | Speed After: " + speedAfter +
+//                    " | Pos Before: " + posBefore +
+//                    " | Pos After: " + posAfter +
+//                    " | Pos Delta: " + (posAfter - posBefore));
 
             dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, delta, matrices, context.getVertexConsumers(), 0xF000F0);
 
