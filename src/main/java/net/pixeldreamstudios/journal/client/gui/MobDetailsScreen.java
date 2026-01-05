@@ -10,11 +10,11 @@ import net.minecraft.client.item.TooltipContext;
 import net.minecraft.client.render.entity.EntityRenderDispatcher;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.boss.dragon.EnderDragonEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.math.Box;
 import net.minecraft.registry.Registries;
 import net.pixeldreamstudios.journal.client.JournalClientData;
 import net.pixeldreamstudios.journal.network.RequestMobDropsPayload;
@@ -48,7 +48,6 @@ public class MobDetailsScreen extends Screen {
     private final int mobSlotW = 120, mobSlotH = 140;
     private final int descSlotW = 110, descSlotH = 130;
     private final Map<Identifier, CachedPose> poseCache = new java.util.HashMap<>();
-    private int renderFrameCounter = 0;
     private boolean showAllDrops = false;
     private int expandButtonX = -1;
     private int expandButtonY = -1;
@@ -56,9 +55,15 @@ public class MobDetailsScreen extends Screen {
     private int expandButtonHeight = -1;
 
     private static class CachedPose {
-        float limbPos, yaw;
+        float yaw;
+        float prevYaw;
         int age;
         long lastUpdated;
+
+        CachedPose() {
+            this.yaw = 0f;
+            this.prevYaw = 0f;
+        }
     }
 
     public MobDetailsScreen(Identifier mobId, int returnPage, String returnQuery) {
@@ -105,7 +110,7 @@ public class MobDetailsScreen extends Screen {
         String[] parts = namespace.split("_");
         StringBuilder builder = new StringBuilder();
         for (String part : parts) {
-            if (!part.isEmpty()) {
+            if (! part.isEmpty()) {
                 builder.append(Character.toUpperCase(part.charAt(0)));
                 builder.append(part.substring(1));
                 builder.append(" ");
@@ -158,7 +163,7 @@ public class MobDetailsScreen extends Screen {
                 btn -> {
                     isFavorite = !isFavorite;
                     ToggleFavoritePayload.sendToServer(mobId, isFavorite);
-                    btn.setMessage(Text.literal(isFavorite ? "★" : "☆").styled(style -> style.withColor(0xFFFF55)));
+                    btn.setMessage(Text.literal(isFavorite ?  "★" : "☆").styled(style -> style.withColor(0xFFFF55)));
                 }
         ).dimensions(0, 0, 18, 18).tooltip(Tooltip.of(Text.literal("Toggle Favorite"))).build();
         this.addDrawableChild(favButton);
@@ -212,7 +217,7 @@ public class MobDetailsScreen extends Screen {
             for (ParsedLine part : inputRow) {
                 float scale = part.scale <= 0 ? 1.0f : part.scale;
                 int width = part.isText() ? renderer.getWidth(part.text) : (int) (16 * scale);
-                int height = part.isText() ? renderer.fontHeight : (int) (16 * scale);
+                int height = part.isText() ? renderer.fontHeight :  (int) (16 * scale);
 
                 if (currentLineWidth + width > wrapWidth && !currentLine.isEmpty()) {
                     if (currentHeight + currentLineHeight > maxHeight) {
@@ -312,7 +317,7 @@ public class MobDetailsScreen extends Screen {
         expandSymbolDrawn = false;
 
         if (mob != null) {
-            drawMob(context, mobSlotX + mobSlotW / 2, mobSlotY + mobSlotH / 2 + 5, 30, mouseX, mouseY, mob);
+            drawMob(context, mobSlotX + mobSlotW / 2, mobSlotY + mobSlotH / 2 + 5, 30, mouseX, mouseY, mob, delta);
 
             List<List<ParsedLine>> rows = paginatedLines.get(descPage);
             TextRenderer renderer = MinecraftClient.getInstance().textRenderer;
@@ -349,7 +354,7 @@ public class MobDetailsScreen extends Screen {
                 int lineHeight = 0;
 
                 for (ParsedLine part : row) {
-                    float scale = part.scale <= 0 ? 1.0f : part.scale;
+                    float scale = part.scale <= 0 ? 1.0f :  part.scale;
                     int drawX = descSlotX + 5 + xOffset;
                     int drawY = descSlotY + yOffset;
 
@@ -466,7 +471,7 @@ public class MobDetailsScreen extends Screen {
         return List.of();
     }
 
-    private void drawMob(DrawContext context, int x, int y, int scale, int mouseX, int mouseY, LivingEntity entity) {
+    private void drawMob(DrawContext context, int x, int y, int scale, int mouseX, int mouseY, LivingEntity entity, float delta) {
         MinecraftClient client = MinecraftClient.getInstance();
         EntityRenderDispatcher dispatcher = client.getEntityRenderDispatcher();
         MatrixStack matrices = context.getMatrices();
@@ -477,28 +482,60 @@ public class MobDetailsScreen extends Screen {
         matrices.translate(0.0, -1.5, 0.0);
 
         try {
-            renderFrameCounter = (renderFrameCounter + 1) % 3;
-            boolean updatePose = renderFrameCounter == 0;
-
             CachedPose pose = poseCache.computeIfAbsent(mobId, k -> new CachedPose());
             long now = System.currentTimeMillis();
 
-            if (updatePose || now - pose.lastUpdated > 250) {
-                pose.limbPos = (now % 10000L) / 1000.0f * 3f;
+            if (now - pose.lastUpdated > 50) {
+                pose.prevYaw = pose.yaw;
                 pose.yaw = (now % 8000L) / 8000.0f * 360F;
-                pose.age = (int) (now / 50L);
+                pose.age = (int)(now / 50L);
                 pose.lastUpdated = now;
             }
 
-            ((net.pixeldreamstudios.journal.mixin.LimbAnimatorAccessor) entity.limbAnimator).setPos(pose.limbPos);
-            entity.limbAnimator.updateLimbs(0.35f, 1f);
+            entity.age = pose.age;
+            entity.prevBodyYaw = pose.prevYaw;
             entity.bodyYaw = pose.yaw;
+            entity.prevYaw = pose.prevYaw;
             entity.setYaw(pose.yaw);
             entity.setPitch(0.0f);
+            entity.prevHeadYaw = pose.prevYaw;
             entity.headYaw = pose.yaw;
-            entity.age = pose.age;
 
-            dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, 1.0f, matrices, context.getVertexConsumers(), 0xF000F0);
+            if (entity instanceof EnderDragonEntity dragon) {
+                dragon.prevWingPosition = dragon.wingPosition;
+                dragon.wingPosition += 0.05f;
+                if (dragon.wingPosition > 1.0f) {
+                    dragon.wingPosition = 0.0f;
+                }
+
+                dragon.prevYaw = pose.prevYaw;
+                dragon.setYaw(pose.yaw);
+                dragon.bodyYaw = pose.yaw;
+                dragon.prevBodyYaw = pose.prevYaw;
+                dragon.headYaw = pose.yaw;
+                dragon.prevHeadYaw = pose.prevYaw;
+            }
+
+            float movementSpeed = (float) entity.getAttributeValue(net.minecraft.entity.attribute.EntityAttributes.GENERIC_MOVEMENT_SPEED);
+            float targetSpeed = Math.min(movementSpeed * 0.5f, 1.0f);
+
+            float speedBefore = entity.limbAnimator.getSpeed();
+            float posBefore = entity.limbAnimator.getPos();
+
+            entity.limbAnimator.updateLimbs(targetSpeed, 1f);
+
+            float speedAfter = entity.limbAnimator.getSpeed();
+            float posAfter = entity.limbAnimator.getPos();
+
+//            System.out.println("[MobDetails] Mob: " + mobId +
+//                    " | TargetSpeed: " + targetSpeed +
+//                    " | Speed Before: " + speedBefore +
+//                    " | Speed After: " + speedAfter +
+//                    " | Pos Before: " + posBefore +
+//                    " | Pos After: " + posAfter +
+//                    " | Pos Delta: " + (posAfter - posBefore));
+
+            dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, delta, matrices, context.getVertexConsumers(), 0xF000F0);
         } catch (Throwable t) {
             matrices.pop();
             TextRenderer renderer = client.textRenderer;

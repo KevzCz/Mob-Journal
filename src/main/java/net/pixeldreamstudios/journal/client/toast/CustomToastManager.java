@@ -27,7 +27,7 @@ public class CustomToastManager {
         boolean top = JournalConfig.toastPosition == JournalConfig.ToastPosition.TOP_LEFT ||
                 JournalConfig.toastPosition == JournalConfig.ToastPosition.TOP_RIGHT;
 
-        boolean right = JournalConfig.toastPosition == JournalConfig.ToastPosition.TOP_RIGHT ||
+        boolean right = JournalConfig.toastPosition == JournalConfig.ToastPosition.BOTTOM_LEFT ||
                 JournalConfig.toastPosition == JournalConfig.ToastPosition.BOTTOM_RIGHT;
 
         int yStart = top ? 5 : screenHeight - 5;

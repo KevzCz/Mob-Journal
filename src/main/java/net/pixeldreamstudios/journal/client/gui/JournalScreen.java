@@ -11,6 +11,7 @@ import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.render.entity.EntityRenderDispatcher;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.boss.dragon.EnderDragonEntity;
 import net.minecraft.entity.mob.BlazeEntity;
 import net.minecraft.registry.Registries;
 import net.minecraft.sound.SoundEvents;
@@ -20,7 +21,6 @@ import net.minecraft.world.World;
 import net.pixeldreamstudios.journal.client.JournalClientData;
 import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.events.JournalSounds;
-import net.pixeldreamstudios.journal.mixin.LimbAnimatorAccessor;
 import net.pixeldreamstudios.journal.util.MobEntityCache;
 
 import java.awt.*;
@@ -46,7 +46,6 @@ public class JournalScreen extends Screen {
 
     private final Map<Identifier, LivingEntity> currentPageMobMap = new HashMap<>();
     private final Map<Identifier, CachedPose> poseCache = new HashMap<>();
-    private int renderFrameCounter = 0;
     private SortMode sortMode = SortMode.ALPHABETICAL;
 
     private enum SortMode {
@@ -54,10 +53,17 @@ public class JournalScreen extends Screen {
         DATE_DISCOVERED,
         MOD_NAMESPACE
     }
+
     private static class CachedPose {
-        float limbPos, yaw;
+        float yaw;
+        float prevYaw;
         int age;
         long lastUpdated;
+
+        CachedPose() {
+            this.yaw = 0f;
+            this.prevYaw = 0f;
+        }
     }
 
     public static class MobSlot {
@@ -168,7 +174,7 @@ public class JournalScreen extends Screen {
             }
         }
 
-        if (!JournalClientData.FAVORITE_MOBS.isEmpty()) {
+        if (! JournalClientData.FAVORITE_MOBS.isEmpty()) {
             filteredMobs.sort((a, b) -> {
                 boolean aFav = JournalClientData.FAVORITE_MOBS.contains(a);
                 boolean bFav = JournalClientData.FAVORITE_MOBS.contains(b);
@@ -182,13 +188,13 @@ public class JournalScreen extends Screen {
         if (currentPage >= totalPages) {
             currentPage = Math.max(totalPages - 1, 0);
         }
-
     }
 
     public void updateDiscoveredMobs() {
         updateFilteredList();
         updateButtons();
     }
+
     private int calculateDynamicScale(LivingEntity entity, int maxWidth, int maxHeight, int baseScale) {
         double width = entity.getWidth();
         double height = entity.getHeight();
@@ -206,8 +212,6 @@ public class JournalScreen extends Screen {
 
         return clamped;
     }
-
-
 
     @Override
     protected void init() {
@@ -249,9 +253,9 @@ public class JournalScreen extends Screen {
                             };
 
                             Text tooltipText = switch (sortMode) {
-                                case ALPHABETICAL     -> Text.literal("Sort: A → Z");
-                                case DATE_DISCOVERED  -> Text.literal("Sort: Recently Discovered");
-                                case MOD_NAMESPACE    -> Text.literal("Sort: By Mod Namespace");
+                                case ALPHABETICAL     -> Text.literal("Sort:   A → Z");
+                                case DATE_DISCOVERED  -> Text.literal("Sort:  Recently Discovered");
+                                case MOD_NAMESPACE    -> Text.literal("Sort:  By Mod Namespace");
                             };
 
                             btn.setMessage(Text.literal(label));
@@ -260,14 +264,10 @@ public class JournalScreen extends Screen {
                             updateFilteredList();
                         }
                 ).dimensions(sortButtonX, sortButtonY, 30, 18)
-                .tooltip(Tooltip.of(Text.literal("Sort: A → Z")))
+                .tooltip(Tooltip.of(Text.literal("Sort:  A → Z")))
                 .build();
 
-
-
         this.addDrawableChild(sortButton);
-
-
         this.addSelectableChild(searchBox);
         this.setInitialFocus(searchBox);
 
@@ -296,6 +296,7 @@ public class JournalScreen extends Screen {
         nextButton.visible = currentPage < totalPages - 1;
         backButton.visible = currentPage > 0;
     }
+
     private static class Nameplate {
         String fullName;
         StringBuilder name;
@@ -330,14 +331,8 @@ public class JournalScreen extends Screen {
         }
     }
 
-
-
-
-    private void renderMobGrid(DrawContext context, int leftStartX, int startY, int mouseX, int mouseY) {
-
+    private void renderMobGrid(DrawContext context, int leftStartX, int startY, int mouseX, int mouseY, float delta) {
         mobSlots.clear();
-        renderFrameCounter = (renderFrameCounter + 1) % 3;
-        boolean updatePose = renderFrameCounter == 0;
 
         MinecraftClient client = MinecraftClient.getInstance();
         World world = client.world;
@@ -412,26 +407,47 @@ public class JournalScreen extends Screen {
             if (isOnScreen) {
                 CachedPose pose = poseCache.computeIfAbsent(id, k -> new CachedPose());
                 long now = System.currentTimeMillis();
-                if (updatePose || now - pose.lastUpdated > 250) {
-                    pose.limbPos     = (now % 10000L) / 1000.0f * 3f;
-                    pose.yaw         = (now % 8000L)  / 8000.0f * 360F;
-                    pose.age         = (int)(now / 50L);
+
+                if (now - pose.lastUpdated > 50) {
+                    pose.prevYaw = pose.yaw;
+                    pose.yaw = (now % 8000L) / 8000.0f * 360F;
+                    pose.age = (int)(now / 50L);
                     pose.lastUpdated = now;
                 }
-                ((LimbAnimatorAccessor) living.limbAnimator).setPos(pose.limbPos);
-                living.limbAnimator.updateLimbs(0.35f, 1f);
+
+                living.age = pose.age;
+                living.prevBodyYaw = pose.prevYaw;
                 living.bodyYaw = pose.yaw;
+                living.prevYaw = pose.prevYaw;
                 living.setYaw(pose.yaw);
                 living.setPitch(0.0f);
+                living.prevHeadYaw = pose.prevYaw;
                 living.headYaw = pose.yaw;
-                living.age     = pose.age;
+
+                if (living instanceof EnderDragonEntity dragon) {
+                    dragon.prevWingPosition = dragon.wingPosition;
+                    dragon.wingPosition += 0.1f;
+                    if (dragon.wingPosition > 1.0f) {
+                        dragon.wingPosition = 0.0f;
+                    }
+
+                    dragon.prevYaw = pose.prevYaw;
+                    dragon.setYaw(pose.yaw);
+                    dragon.bodyYaw = pose.yaw;
+                    dragon.prevBodyYaw = pose.prevYaw;
+                    dragon.headYaw = pose.yaw;
+                    dragon.prevHeadYaw = pose.prevYaw;
+                }
+
+                float movementSpeed = (float) living.getAttributeValue(net.minecraft.entity.attribute.EntityAttributes.GENERIC_MOVEMENT_SPEED);
+                float targetSpeed = Math.min(movementSpeed * 0.5f, 1.0f);
+                living.limbAnimator.updateLimbs(targetSpeed, 1f);
             }
 
             int scale = isHovered ? hoverScale : baseScale;
             int targetScale = calculateDynamicScale(living, boxWidth, boxHeight, isHovered ? hoverScale : baseScale);
 
-            drawMob(context, x, y, targetScale, mouseX, mouseY, living);
-
+            drawMob(context, x, y, targetScale, mouseX, mouseY, living, delta);
 
             Nameplate plate = new Nameplate(
                     living.getDisplayName().getString(),
@@ -445,7 +461,6 @@ public class JournalScreen extends Screen {
         dispatcher.setRenderShadows(true);
         drawNameplate(context, pendingNameplates, client.textRenderer);
     }
-
 
     private void drawNameplate(DrawContext context, List<Nameplate> plates, TextRenderer renderer) {
         boolean changed;
@@ -507,11 +522,7 @@ public class JournalScreen extends Screen {
         }
     }
 
-
-
-
-
-    private void drawMob(DrawContext context, int x, int y, int scale, int mouseX, int mouseY, LivingEntity entity) {
+    private void drawMob(DrawContext context, int x, int y, int scale, int mouseX, int mouseY, LivingEntity entity, float delta) {
         MinecraftClient client = MinecraftClient.getInstance();
         EntityRenderDispatcher dispatcher = client.getEntityRenderDispatcher();
         MatrixStack matrices = context.getMatrices();
@@ -521,8 +532,7 @@ public class JournalScreen extends Screen {
         matrices.translate(0.0, -1.5, 0.0);
 
         try {
-
-            dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, 1.0f, matrices, context.getVertexConsumers(), 0xF000F0);
+            dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, delta, matrices, context.getVertexConsumers(), 0xF000F0);
         } catch (Throwable t) {
             TextRenderer renderer = client.textRenderer;
             int textWidth = renderer.getWidth("Can't render mob");
@@ -534,7 +544,6 @@ public class JournalScreen extends Screen {
                     0xFF5555
             );
         } finally {
-
             matrices.pop();
         }
     }
@@ -560,7 +569,6 @@ public class JournalScreen extends Screen {
         backButton.mouseClicked(mouseX, mouseY);
         return super.mouseClicked(mouseX, mouseY, button);
     }
-
 
     private long nextTypingSoundTime = 0;
 
@@ -612,7 +620,7 @@ public class JournalScreen extends Screen {
 
             context.drawText(renderer, message, messageX, messageY, 0x888888, false);
         } else {
-            renderMobGrid(context, x + 176, y + 38, mouseX, mouseY);
+            renderMobGrid(context, x + 176, y + 38, mouseX, mouseY, delta);
         }
         context.draw();
         nextButton.render(context, mouseX, mouseY);
