@@ -27,7 +27,7 @@ public class CustomToastManager {
         boolean top = JournalConfig.toastPosition == JournalConfig.ToastPosition.TOP_LEFT ||
                 JournalConfig.toastPosition == JournalConfig.ToastPosition.TOP_RIGHT;
 
-        boolean right = JournalConfig.toastPosition == JournalConfig.ToastPosition.BOTTOM_LEFT ||
+        boolean right = JournalConfig.toastPosition == JournalConfig.ToastPosition.TOP_RIGHT ||
                 JournalConfig.toastPosition == JournalConfig.ToastPosition.BOTTOM_RIGHT;
 
         int yStart = top ? 5 : screenHeight - 5;
@@ -53,7 +53,7 @@ public class CustomToastManager {
                 progress = easeInQuad((slideDuration - remaining) / (float) slideDuration);
                 x = interpolateX(right, toastWidth, 1 - progress);
             } else {
-                x = right ? screenWidth - toastWidth - 5 : 5;
+                x = right ?  screenWidth - toastWidth - 5 : 5;
             }
 
             int y = top
@@ -76,7 +76,7 @@ public class CustomToastManager {
 
     private static int interpolateX(boolean rightSide, int toastWidth, float progress) {
         int screenWidth = MinecraftClient.getInstance().getWindow().getScaledWidth();
-        int startX = rightSide ? screenWidth : -toastWidth;
+        int startX = rightSide ?  screenWidth : -toastWidth;
         int endX = rightSide ? screenWidth - toastWidth - 5 : 5;
         return (int) (startX + (endX - startX) * progress);
     }

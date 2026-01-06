@@ -6,10 +6,12 @@ import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.passive.TameableEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Box;
 import net.pixeldreamstudios.journal.config.JournalConfig;
+import net.pixeldreamstudios.journal.item.JournalItems;
 import net.pixeldreamstudios.journal.network.UnlockMobPayload;
 
 import java.util.*;
@@ -18,10 +20,8 @@ public class MobUnlockTracker {
     private static int tickCounter = 0;
     private static final Set<Identifier> alreadySent = new HashSet<>();
 
-
     private static final Long LAST_HIT_EXPIRY_MS = 5000L;
     private static final Map<Integer, Long> recentHits = new HashMap<>();
-
 
     private static final Long LAST_INTERACT_EXPIRY_MS = 5000L;
     private static final Map<Integer, Long> recentInteracts = new HashMap<>();
@@ -38,27 +38,25 @@ public class MobUnlockTracker {
         var player = client.player;
         if (player == null || world == null) return;
 
-
         long now = System.currentTimeMillis();
         recentHits.entrySet().removeIf(e -> now - e.getValue() > LAST_HIT_EXPIRY_MS);
         recentInteracts.entrySet().removeIf(e -> now - e.getValue() > LAST_INTERACT_EXPIRY_MS);
 
-
-        if (JournalConfig.requireJournalInInventory && !hasJournalInInventory(player)) {
+        if (JournalConfig.requireJournalInInventory && ! hasJournalInInventory(player)) {
             tickCounter = 0;
             return;
         }
 
         switch (JournalConfig.discoveryMode) {
             case NEAR -> processNearMode(player);
-            case HIT -> { /* handled by onPlayerHitEntity(...) */ }
-            case KILL -> { /* kill recorded + onEntityDied(...) finishes */ }
-            case INTERACT -> { /* handled by onPlayerInteractEntity(...) */ }
+            case HIT -> {}
+            case KILL -> {}
+            case INTERACT -> {}
         }
     }
 
     private static boolean hasJournalInInventory(ClientPlayerEntity player) {
-        return true;
+        return player.getInventory().contains(new ItemStack(JournalItems.JOURNAL_ITEM));
     }
 
     private static void processNearMode(ClientPlayerEntity player) {
@@ -71,7 +69,7 @@ public class MobUnlockTracker {
         List<Identifier> toUnlock = new ArrayList<>();
         for (var mob : nearby) {
             Identifier id = Registries.ENTITY_TYPE.getId(mob.getType());
-            if (!alreadySent.contains(id) && !JournalConfig.isBlacklisted(id)) {
+            if (!alreadySent.contains(id) && ! JournalConfig.isBlacklisted(id)) {
                 toUnlock.add(id);
             }
         }
@@ -124,7 +122,7 @@ public class MobUnlockTracker {
     }
 
     public static void onPlayerTamedEntity(LivingEntity target) {
-        if (!JournalConfig.enableTamedTrigger) return;
+        if (! JournalConfig.enableTamedTrigger) return;
 
         var client = MinecraftClient.getInstance();
         var local = client.player;
@@ -139,14 +137,13 @@ public class MobUnlockTracker {
 
         }
 
-        if (ownerUuid == null || !ownerUuid.equals(local.getUuid())) return;
+        if (ownerUuid == null || ! ownerUuid.equals(local.getUuid())) return;
 
         Identifier id = Registries.ENTITY_TYPE.getId(target.getType());
         if (!alreadySent.contains(id) && !JournalConfig.isBlacklisted(id)) {
             sendUnlock(id);
         }
     }
-
 
     private static void sendUnlock(Identifier id) {
         ClientPlayNetworking.send(new UnlockMobPayload(id));
