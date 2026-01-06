@@ -6,10 +6,12 @@ import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.passive.TameableEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Box;
 import net.pixeldreamstudios.journal.config.JournalConfig;
+import net.pixeldreamstudios.journal.item.JournalItems;
 import net.pixeldreamstudios.journal.network.UnlockMobPayload;
 
 import java.util.*;
@@ -58,7 +60,7 @@ public class MobUnlockTracker {
     }
 
     private static boolean hasJournalInInventory(ClientPlayerEntity player) {
-        return true;
+        return player.getInventory().contains(new ItemStack(JournalItems.JOURNAL_ITEM));
     }
 
     private static void processNearMode(ClientPlayerEntity player) {
