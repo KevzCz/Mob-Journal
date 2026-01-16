@@ -16,18 +16,19 @@ public class MobLootUtil {
         Map<Identifier, ItemStack> drops = new HashMap<>();
 
         var lootTableKey = mob.getLootTable();
+
+        var lootManager = world.getServer().getLootManager();
+        var lootTable = lootManager.getLootTable(lootTableKey);
+
         var allItems = AllLootTableItems.getAllItemsFromLootTable(lootTableKey, world);
 
         int index = 0;
         for (Item item : allItems) {
             ItemStack stack = new ItemStack(item);
-            if (!stack.isEmpty() && stack.getItem() != Items.AIR && stack.getCount() > 0) {
+            if (! stack.isEmpty() && stack.getItem() != Items.AIR && stack.getCount() > 0) {
                 drops.put(Identifier.of("journal", String.valueOf(index++)), stack);
             }
-
         }
         return drops;
     }
-
-
 }

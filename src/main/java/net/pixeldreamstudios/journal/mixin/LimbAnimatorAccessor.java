@@ -8,5 +8,16 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 public interface LimbAnimatorAccessor {
     @Accessor("pos")
     void setPos(float pos);
-}
 
+    @Accessor("speed")
+    void setSpeed(float speed);
+
+    @Accessor("prevSpeed")
+    void setPrevSpeed(float prevSpeed);
+
+    @Accessor("pos")
+    float getPos();
+
+    @Accessor("speed")
+    float getSpeed();
+}

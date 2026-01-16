@@ -59,10 +59,17 @@ public class MobDetailsScreen extends Screen {
         float prevYaw;
         int age;
         long lastUpdated;
+        float limbSwing;
+        float limbSwingAmount;
+        boolean initialized;
 
         CachedPose() {
             this.yaw = 0f;
             this.prevYaw = 0f;
+            this.limbSwing = 0f;
+            this.limbSwingAmount = 1.0f;
+            this.initialized = false;
+            this.lastUpdated = System.currentTimeMillis();
         }
     }
 
@@ -485,12 +492,22 @@ public class MobDetailsScreen extends Screen {
             CachedPose pose = poseCache.computeIfAbsent(mobId, k -> new CachedPose());
             long now = System.currentTimeMillis();
 
-            if (now - pose.lastUpdated > 50) {
-                pose.prevYaw = pose.yaw;
-                pose.yaw = (now % 8000L) / 8000.0f * 360F;
-                pose.age = (int)(now / 50L);
+            if (! pose.initialized) {
+                pose.limbSwingAmount = 0.6f;
+                pose.initialized = true;
+            }
+
+            float prevLimbSwing = pose.limbSwing;
+
+            long elapsed = now - pose.lastUpdated;
+            if (elapsed > 0) {
+                pose.limbSwing += (elapsed / 1000.0f) * 12.0f;
                 pose.lastUpdated = now;
             }
+
+            pose.prevYaw = pose.yaw;
+            pose.yaw = (now % 8000L) / 8000.0f * 360F;
+            pose.age = (int)(now / 50L);
 
             entity.age = pose.age;
             entity.prevBodyYaw = pose.prevYaw;
@@ -516,24 +533,7 @@ public class MobDetailsScreen extends Screen {
                 dragon.prevHeadYaw = pose.prevYaw;
             }
 
-            float movementSpeed = (float) entity.getAttributeValue(net.minecraft.entity.attribute.EntityAttributes.GENERIC_MOVEMENT_SPEED);
-            float targetSpeed = Math.min(movementSpeed * 0.5f, 1.0f);
-
-            float speedBefore = entity.limbAnimator.getSpeed();
-            float posBefore = entity.limbAnimator.getPos();
-
-            entity.limbAnimator.updateLimbs(targetSpeed, 1f);
-
-            float speedAfter = entity.limbAnimator.getSpeed();
-            float posAfter = entity.limbAnimator.getPos();
-
-//            System.out.println("[MobDetails] Mob: " + mobId +
-//                    " | TargetSpeed: " + targetSpeed +
-//                    " | Speed Before: " + speedBefore +
-//                    " | Speed After: " + speedAfter +
-//                    " | Pos Before: " + posBefore +
-//                    " | Pos After: " + posAfter +
-//                    " | Pos Delta: " + (posAfter - posBefore));
+            net.pixeldreamstudios.journal.client.gui.AnimationOverride.set(entity, pose.limbSwing, prevLimbSwing);
 
             dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, delta, matrices, context.getVertexConsumers(), 0xF000F0);
         } catch (Throwable t) {

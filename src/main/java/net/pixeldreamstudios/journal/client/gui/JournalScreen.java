@@ -59,10 +59,17 @@ public class JournalScreen extends Screen {
         float prevYaw;
         int age;
         long lastUpdated;
+        float limbSwing;
+        float limbSwingAmount;
+        boolean initialized;
 
         CachedPose() {
             this.yaw = 0f;
             this.prevYaw = 0f;
+            this.limbSwing = 0f;
+            this.limbSwingAmount = 1.0f;
+            this.initialized = false;
+            this.lastUpdated = System.currentTimeMillis();
         }
     }
 
@@ -408,12 +415,22 @@ public class JournalScreen extends Screen {
                 CachedPose pose = poseCache.computeIfAbsent(id, k -> new CachedPose());
                 long now = System.currentTimeMillis();
 
-                if (now - pose.lastUpdated > 50) {
-                    pose.prevYaw = pose.yaw;
-                    pose.yaw = (now % 8000L) / 8000.0f * 360F;
-                    pose.age = (int)(now / 50L);
+                if (! pose.initialized) {
+                    pose.limbSwingAmount = 0.6f;
+                    pose.initialized = true;
+                }
+
+                float prevLimbSwing = pose.limbSwing;
+
+                long elapsed = now - pose.lastUpdated;
+                if (elapsed > 0) {
+                    pose.limbSwing += (elapsed / 1000.0f) * 12.0f;
                     pose.lastUpdated = now;
                 }
+
+                pose.prevYaw = pose.yaw;
+                pose.yaw = (now % 8000L) / 8000.0f * 360F;
+                pose.age = (int)(now / 50L);
 
                 living.age = pose.age;
                 living.prevBodyYaw = pose.prevYaw;
@@ -439,9 +456,7 @@ public class JournalScreen extends Screen {
                     dragon.prevHeadYaw = pose.prevYaw;
                 }
 
-                float movementSpeed = (float) living.getAttributeValue(net.minecraft.entity.attribute.EntityAttributes.GENERIC_MOVEMENT_SPEED);
-                float targetSpeed = Math.min(movementSpeed * 0.5f, 1.0f);
-                living.limbAnimator.updateLimbs(targetSpeed, 1f);
+                net.pixeldreamstudios.journal.client.gui.AnimationOverride.set(living, pose.limbSwing, prevLimbSwing);
             }
 
             int scale = isHovered ? hoverScale : baseScale;
