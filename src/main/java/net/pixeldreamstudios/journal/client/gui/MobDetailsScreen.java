@@ -58,18 +58,24 @@ public class MobDetailsScreen extends Screen {
     private int expandButtonY = -1;
     private int expandButtonWidth = -1;
     private int expandButtonHeight = -1;
-    private static class CachedPose {
-        float yaw;
-        float prevYaw;
-        int age;
-        long lastUpdated;
-        boolean limbsInitialized = false;
+	private static class CachedPose {
+		float yaw;
+		float prevYaw;
+		int age;
+		long lastUpdated;
+		float limbSwing;
+		float limbSwingAmount;
+		boolean initialized;
 
-        CachedPose() {
-            this.yaw = 0f;
-            this.prevYaw = 0f;
-        }
-    }
+		CachedPose() {
+			this.yaw = 0f;
+			this.prevYaw = 0f;
+			this.limbSwing = 0f;
+			this.limbSwingAmount = 1.0f;
+			this.initialized = false;
+			this.lastUpdated = System.currentTimeMillis();
+		}
+	}
     public MobDetailsScreen(Identifier mobId, int returnPage, String returnQuery) {
         super(Text.literal("Mob Info"));
         this.mobId = mobId;
@@ -518,84 +524,75 @@ public class MobDetailsScreen extends Screen {
     }
 
     private void drawMob(DrawContext context, int x, int y, int scale, int mouseX, int mouseY, LivingEntity entity, float delta) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        EntityRenderDispatcher dispatcher = client.getEntityRenderDispatcher();
-        MatrixStack matrices = context.getMatrices();
-        dispatcher.setRenderShadows(false);
-        matrices.push();
-        matrices.translate(x, y, 100.0);
-        matrices.scale(scale, -scale, scale);
-        matrices.translate(0.0, -1.5, 0.0);
+		MinecraftClient client = MinecraftClient.getInstance();
+		EntityRenderDispatcher dispatcher = client.getEntityRenderDispatcher();
+		MatrixStack matrices = context.getMatrices();
+		dispatcher.setRenderShadows(false);
+		matrices.push();
+		matrices.translate(x, y, 100.0);
+		matrices.scale(scale, -scale, scale);
+		matrices.translate(0.0, -1.5, 0.0);
 
-        try {
-            CachedPose pose = poseCache.computeIfAbsent(mobId, k -> new CachedPose());
-            long now = System.currentTimeMillis();
+		try {
+			CachedPose pose = poseCache.computeIfAbsent(mobId, k -> new CachedPose());
+			long now = System.currentTimeMillis();
 
-            if (now - pose.lastUpdated > 50) {
-                pose.prevYaw = pose.yaw;
-                pose.yaw = (now % 8000L) / 8000.0f * 360F;
-                pose.age = (int)(now / 50L);
-                pose.lastUpdated = now;
-            }
+			if (!  pose.initialized) {
+				pose.limbSwingAmount = 0.6f;
+				pose.initialized = true;
+			}
 
-            entity.age = pose.age;
-            entity.prevBodyYaw = pose.prevYaw;
-            entity.bodyYaw = pose.yaw;
-            entity.prevYaw = pose.prevYaw;
-            entity.setYaw(pose.yaw);
-            entity.setPitch(0.0f);
-            entity.prevHeadYaw = pose.prevYaw;
-            entity.headYaw = pose.yaw;
+			float prevLimbSwing = pose.limbSwing;
 
-            if (entity instanceof EnderDragonEntity dragon) {
-                dragon.prevWingPosition = dragon.wingPosition;
-                dragon.wingPosition += 0.05f;
-                if (dragon.wingPosition > 1.0f) {
-                    dragon.wingPosition = 0.0f;
-                }
+			long elapsed = now - pose.lastUpdated;
+			if (elapsed > 0) {
+				pose.limbSwing += (elapsed / 1000.0f) * 12.0f;
+				pose.lastUpdated = now;
+			}
 
-                dragon.prevYaw = pose.prevYaw;
-                dragon.setYaw(pose.yaw);
-                dragon.bodyYaw = pose.yaw;
-                dragon.prevBodyYaw = pose.prevYaw;
-                dragon.headYaw = pose.yaw;
-                dragon.prevHeadYaw = pose.prevYaw;
-            }
+			pose.prevYaw = pose.yaw;
+			pose.yaw = (now % 8000L) / 8000.0f * 360F;
+			pose.age = (int)(now / 50L);
 
-            float movementSpeed = (float) entity.getAttributeValue(net.minecraft.entity.attribute.EntityAttributes.GENERIC_MOVEMENT_SPEED);
-            float targetSpeed = Math.min(movementSpeed*0.5f, 1.0f);
+			entity.age = pose.age;
+			entity.prevBodyYaw = pose.prevYaw;
+			entity.bodyYaw = pose.yaw;
+			entity.prevYaw = pose.prevYaw;
+			entity.setYaw(pose.yaw);
+			entity.setPitch(0.0f);
+			entity.prevHeadYaw = pose.prevYaw;
+			entity.headYaw = pose.yaw;
 
-            // Debug:  Log before updateLimbs
-            float speedBefore = entity.limbAnimator.getSpeed();
-            float posBefore = entity.limbAnimator.getPos();
+			if (entity instanceof EnderDragonEntity dragon) {
+				dragon.prevWingPosition = dragon.wingPosition;
+				dragon.wingPosition += 0.05f;
+				if (dragon.wingPosition > 1.0f) {
+					dragon.wingPosition = 0.0f;
+				}
 
-            entity.limbAnimator.updateLimbs(targetSpeed, 1f);
+				dragon.prevYaw = pose.prevYaw;
+				dragon.setYaw(pose.yaw);
+				dragon.bodyYaw = pose.yaw;
+				dragon.prevBodyYaw = pose.prevYaw;
+				dragon.headYaw = pose.yaw;
+				dragon.prevHeadYaw = pose.prevYaw;
+			}
 
-            // Debug: Log after updateLimbs
-            float speedAfter = entity.limbAnimator.getSpeed();
-            float posAfter = entity.limbAnimator.getPos();
+			net.pixeldreamstudios.journal.client.gui.AnimationOverride.set(entity, pose.limbSwing, prevLimbSwing);
 
-//            System.out.println("[MobDetails] Mob: " + mobId +
-//                    " | TargetSpeed: " + targetSpeed +
-//                    " | Speed Before: " + speedBefore +
-//                    " | Speed After: " + speedAfter +
-//                    " | Pos Before: " + posBefore +
-//                    " | Pos After: " + posAfter +
-//                    " | Pos Delta: " + (posAfter - posBefore));
+			dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, delta, matrices, context.getVertexConsumers(), 0xF000F0);
 
-            dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, delta, matrices, context.getVertexConsumers(), 0xF000F0);
-
-        } catch (Throwable t) {
-            matrices.pop();
-            TextRenderer renderer = client.textRenderer;
-            String errorText = "Can't render mob";
-            int textWidth = renderer.getWidth(errorText);
-            context.drawTextWithShadow(renderer, Text.literal(errorText), x - textWidth / 2, y - 10, 0xFF5555);
-            return;
-        }
-        dispatcher.setRenderShadows(true);
-        matrices.pop();
-    }
+		} catch (Throwable t) {
+			matrices.pop();
+			TextRenderer renderer = client.textRenderer;
+			String errorText = "Can't render mob";
+			int textWidth = renderer.getWidth(errorText);
+			context.drawTextWithShadow(renderer, Text.literal(errorText), x - textWidth / 2, y - 10, 0xFF5555);
+			return;
+		}
+		dispatcher.setRenderShadows(true);
+		matrices.pop();
+	}
 
 
 
