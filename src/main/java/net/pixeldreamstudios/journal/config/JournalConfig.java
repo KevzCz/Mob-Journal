@@ -49,7 +49,7 @@ public class JournalConfig {
 
     public static void load() {
         try {
-            if (!CONFIG_FILE.exists()) {
+            if (! CONFIG_FILE.exists()) {
                 saveDefault();
                 return;
             }
@@ -75,13 +75,15 @@ public class JournalConfig {
                 recordDiscoveryTimestamp  = getOrDefault(data.record_discovery_timestamp, true);
                 showDiscoveryDate         = getOrDefault(data.show_discovery_date, true);
                 mobCheckInterval          = data.mob_check_interval == 0 ? 40 : data.mob_check_interval;
-                mobCheckRadius            = data.mob_check_radius == 0.0 ?  8.0 : data.mob_check_radius;
+                mobCheckRadius            = data.mob_check_radius == 0.0 ? 8.0 :   data.mob_check_radius;
                 requireJournalInInventory = getOrDefault(data.require_journal_in_inventory, true);
                 giveJournalOnJoin         = getOrDefault(data.give_journal_on_join, true);
 
                 discoveryMode      = parseDiscoveryMode(data.discovery_mode);
                 enableTamedTrigger = getOrDefault(data.enable_tamed_trigger, false);
             }
+
+            loadRenderConfigs();
         } catch (Exception e) {
             System.err.println("[Journal] Failed to load config: " + e);
         }
@@ -124,7 +126,7 @@ public class JournalConfig {
 
         if (data.blacklisted_mobs == null) {
             data.blacklisted_mobs = List.of(
-                    "minecraft:armor_stand",
+                    "minecraft: armor_stand",
                     "examplemod:badmob",
                     "examplenamespace:*"
             );
@@ -180,7 +182,7 @@ public class JournalConfig {
                 GSON.toJson(data, writer);
                 System.out.println("[Journal] Config updated to version " + configVersion);
             } catch (Exception e) {
-                System.err.println("[Journal] Failed to migrate config:  " + e);
+                System.err.println("[Journal] Failed to migrate config: " + e);
             }
         }
     }
@@ -202,7 +204,86 @@ public class JournalConfig {
     private static boolean getOrDefault(Boolean b, boolean d) {
         return b == null ? d : b;
     }
+    public static class MobRenderConfig {
+        public float scale = 1.0f;
+        public float xOffset = 0.0f;
+        public float yOffset = 0.0f;
+        public float speed = 0.6f;
+        public float smoothing = 12.0f;
 
+        public MobRenderConfig() {}
+
+        public MobRenderConfig(float scale, float xOffset, float yOffset, float speed, float smoothing) {
+            this.scale = scale;
+            this.xOffset = xOffset;
+            this.yOffset = yOffset;
+            this.speed = speed;
+            this.smoothing = smoothing;
+        }
+    }
+
+    public static void setMobRenderConfig(Identifier mobId, boolean isGridMode, float scale, float xOffset, float yOffset, float speed, float smoothing) {
+        String key = mobId.toString();
+        Map<String, MobRenderConfig> configs = isGridMode ? gridRenderConfigs : detailRenderConfigs;
+        configs.put(key, new MobRenderConfig(scale, xOffset, yOffset, speed, smoothing));
+    }
+
+    public static void deleteMobRenderConfig(Identifier mobId, boolean isGridMode) {
+        String key = mobId.toString();
+        Map<String, MobRenderConfig> configs = isGridMode ? gridRenderConfigs : detailRenderConfigs;
+        configs.remove(key);
+    }
+
+    public static Map<String, MobRenderConfig> gridRenderConfigs = new HashMap<>();
+    public static Map<String, MobRenderConfig> detailRenderConfigs = new HashMap<>();
+
+    private static final File RENDER_CONFIG_FILE = new File("config/journal_render.json");
+
+    public static MobRenderConfig getMobRenderConfig(Identifier mobId, boolean isGridMode) {
+        String key = mobId.toString();
+        Map<String, MobRenderConfig> configs = isGridMode ? gridRenderConfigs : detailRenderConfigs;
+        return configs.getOrDefault(key, new MobRenderConfig());
+    }
+
+    public static void loadRenderConfigs() {
+        try {
+            if (! RENDER_CONFIG_FILE.exists()) {
+                return;
+            }
+            try (FileReader reader = new FileReader(RENDER_CONFIG_FILE)) {
+                RenderConfigData data = GSON.fromJson(reader, RenderConfigData.class);
+                if (data != null) {
+                    if (data.grid_configs != null) {
+                        gridRenderConfigs = data.grid_configs;
+                    }
+                    if (data.detail_configs != null) {
+                        detailRenderConfigs = data.detail_configs;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[Journal] Failed to load render configs: " + e);
+        }
+    }
+
+    public static void saveRenderConfigs() {
+        try {
+            RenderConfigData data = new RenderConfigData();
+            data.grid_configs = gridRenderConfigs;
+            data.detail_configs = detailRenderConfigs;
+
+            try (FileWriter writer = new FileWriter(RENDER_CONFIG_FILE)) {
+                GSON.toJson(data, writer);
+            }
+        } catch (Exception e) {
+            System.err.println("[Journal] Failed to save render configs: " + e);
+        }
+    }
+
+    private static class RenderConfigData {
+        public Map<String, MobRenderConfig> grid_configs;
+        public Map<String, MobRenderConfig> detail_configs;
+    }
     private static class ConfigData {
         public List<String> blacklisted_mobs;
         public String       toast_position;
