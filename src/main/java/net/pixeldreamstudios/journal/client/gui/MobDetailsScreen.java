@@ -17,6 +17,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.registry.Registries;
 import net.pixeldreamstudios.journal.client.JournalClientData;
+import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.network.RequestMobDropsPayload;
 import net.pixeldreamstudios.journal.network.ToggleFavoritePayload;
 import net.pixeldreamstudios.journal.util.MarkdownParser;
@@ -53,6 +54,10 @@ public class MobDetailsScreen extends Screen {
     private int expandButtonY = -1;
     private int expandButtonWidth = -1;
     private int expandButtonHeight = -1;
+    private int mobRenderX = -1;
+    private int mobRenderY = -1;
+    private int mobRenderWidth = -1;
+    private int mobRenderHeight = -1;
 
     private static class CachedPose {
         float yaw;
@@ -141,7 +146,7 @@ public class MobDetailsScreen extends Screen {
         RequestMobDropsPayload.sendToServer(mobId);
 
         List<List<ParsedLine>> allLines = mob != null
-                ? net.pixeldreamstudios.journal.data.MobDescriptionLoader.getDescription(mobId, mob)
+                ?  net.pixeldreamstudios.journal.data.MobDescriptionLoader.getDescription(mobId, mob)
                 : List.of(List.of(new ParsedLine(Text.literal("§cUnknown mob"))));
 
         if (MarkdownParser.containsPlaceholder(allLines, "{getLootDrops}")) {
@@ -224,9 +229,9 @@ public class MobDetailsScreen extends Screen {
             for (ParsedLine part : inputRow) {
                 float scale = part.scale <= 0 ? 1.0f : part.scale;
                 int width = part.isText() ? renderer.getWidth(part.text) : (int) (16 * scale);
-                int height = part.isText() ? renderer.fontHeight :  (int) (16 * scale);
+                int height = part.isText() ? renderer.fontHeight : (int) (16 * scale);
 
-                if (currentLineWidth + width > wrapWidth && !currentLine.isEmpty()) {
+                if (currentLineWidth + width > wrapWidth && ! currentLine.isEmpty()) {
                     if (currentHeight + currentLineHeight > maxHeight) {
                         paginatedLines.add(currentPage);
                         currentPage = new ArrayList<>();
@@ -244,7 +249,7 @@ public class MobDetailsScreen extends Screen {
                 currentLineHeight = Math.max(currentLineHeight, height);
             }
 
-            if (!currentLine.isEmpty()) {
+            if (! currentLine.isEmpty()) {
                 if (currentHeight + currentLineHeight > maxHeight && !currentPage.isEmpty()) {
                     paginatedLines.add(currentPage);
                     currentPage = new ArrayList<>();
@@ -289,6 +294,21 @@ public class MobDetailsScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (mobRenderX >= 0 && mobRenderY >= 0) {
+            if (mouseX >= mobRenderX && mouseX <= mobRenderX + mobRenderWidth &&
+                    mouseY >= mobRenderY && mouseY <= mobRenderY + mobRenderHeight) {
+
+                boolean altPressed = net.minecraft.client.gui.screen.Screen.hasAltDown();
+
+                if (altPressed && button == 0) {
+                    MinecraftClient.getInstance().setScreen(
+                            new MobRenderConfigScreen(this, mobId, false)
+                    );
+                    return true;
+                }
+            }
+        }
+
         backButton.mouseClicked(mouseX, mouseY);
         backDescButton.mouseClicked(mouseX, mouseY);
         nextButton.mouseClicked(mouseX, mouseY);
@@ -324,6 +344,11 @@ public class MobDetailsScreen extends Screen {
         expandSymbolDrawn = false;
 
         if (mob != null) {
+            mobRenderX = mobSlotX;
+            mobRenderY = mobSlotY;
+            mobRenderWidth = mobSlotW;
+            mobRenderHeight = mobSlotH;
+
             drawMob(context, mobSlotX + mobSlotW / 2, mobSlotY + mobSlotH / 2 + 5, 30, mouseX, mouseY, mob, delta);
 
             List<List<ParsedLine>> rows = paginatedLines.get(descPage);
@@ -479,13 +504,19 @@ public class MobDetailsScreen extends Screen {
     }
 
     private void drawMob(DrawContext context, int x, int y, int scale, int mouseX, int mouseY, LivingEntity entity, float delta) {
+        JournalConfig.MobRenderConfig config = JournalConfig.getMobRenderConfig(mobId, false);
+
+        int adjustedX = x + (int) config.xOffset;
+        int adjustedY = y + (int) config.yOffset;
+        int adjustedScale = (int) (scale * config.scale);
+
         MinecraftClient client = MinecraftClient.getInstance();
         EntityRenderDispatcher dispatcher = client.getEntityRenderDispatcher();
         MatrixStack matrices = context.getMatrices();
         dispatcher.setRenderShadows(false);
         matrices.push();
-        matrices.translate(x, y, 100.0);
-        matrices.scale(scale, -scale, scale);
+        matrices.translate(adjustedX, adjustedY, 100.0);
+        matrices.scale(adjustedScale, -adjustedScale, adjustedScale);
         matrices.translate(0.0, -1.5, 0.0);
 
         try {
@@ -493,7 +524,7 @@ public class MobDetailsScreen extends Screen {
             long now = System.currentTimeMillis();
 
             if (! pose.initialized) {
-                pose.limbSwingAmount = 0.6f;
+                pose.limbSwingAmount = config.speed;
                 pose.initialized = true;
             }
 
@@ -501,7 +532,7 @@ public class MobDetailsScreen extends Screen {
 
             long elapsed = now - pose.lastUpdated;
             if (elapsed > 0) {
-                pose.limbSwing += (elapsed / 1000.0f) * 12.0f;
+                pose.limbSwing += (elapsed / 1000.0f) * config.smoothing;
                 pose.lastUpdated = now;
             }
 
@@ -533,7 +564,7 @@ public class MobDetailsScreen extends Screen {
                 dragon.prevHeadYaw = pose.prevYaw;
             }
 
-            net.pixeldreamstudios.journal.client.gui.AnimationOverride.set(entity, pose.limbSwing, prevLimbSwing);
+            net.pixeldreamstudios.journal.client.gui.AnimationOverride.set(entity, pose.limbSwing, prevLimbSwing, config.speed);
 
             dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, delta, matrices, context.getVertexConsumers(), 0xF000F0);
         } catch (Throwable t) {
@@ -541,7 +572,7 @@ public class MobDetailsScreen extends Screen {
             TextRenderer renderer = client.textRenderer;
             String errorText = "Can't render mob";
             int textWidth = renderer.getWidth(errorText);
-            context.drawTextWithShadow(renderer, Text.literal(errorText), x - textWidth / 2, y - 10, 0xFF5555);
+            context.drawTextWithShadow(renderer, Text.literal(errorText), adjustedX - textWidth / 2, adjustedY - 10, 0xFF5555);
             return;
         }
         dispatcher.setRenderShadows(true);

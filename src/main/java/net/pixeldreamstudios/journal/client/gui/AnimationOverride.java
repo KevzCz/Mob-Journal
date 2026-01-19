@@ -19,8 +19,8 @@ public class AnimationOverride {
         }
     }
 
-    public static void set(LivingEntity entity, float limbSwing, float prevLimbSwing) {
-        OVERRIDES.put(entity, new PoseData(limbSwing, prevLimbSwing, 0.6f));
+    public static void set(LivingEntity entity, float limbSwing, float prevLimbSwing, float speed) {
+        OVERRIDES.put(entity, new PoseData(limbSwing, prevLimbSwing, speed));
     }
 
     public static PoseData getPoseData(LivingEntity entity) {
