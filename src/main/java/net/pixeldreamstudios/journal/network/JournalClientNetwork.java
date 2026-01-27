@@ -12,6 +12,7 @@ import net.minecraft.util.Identifier;
 import net.pixeldreamstudios.journal.client.JournalClient;
 import net.pixeldreamstudios.journal.client.JournalClientData;
 import net.pixeldreamstudios.journal.client.MobUnlockTracker;
+import net.pixeldreamstudios.journal.client.gui.BlacklistScreen;
 import net.pixeldreamstudios.journal.client.gui.JournalScreen;
 import net.pixeldreamstudios.journal.client.gui.MobDetailsScreen;
 import net.pixeldreamstudios.journal.client.toast.MobDiscoveredToast;
@@ -24,10 +25,8 @@ import java.util.Map;
 
 public class JournalClientNetwork {
     public static void init() {
-
         ClientPlayNetworking.registerGlobalReceiver(SyncJournalPayload.ID, (payload, context) -> {
             MinecraftClient.getInstance().execute(() -> {
-
                 JournalClientData.DISCOVERED.clear();
                 JournalClientData.DISCOVERED_TIME.clear();
 
@@ -36,14 +35,11 @@ public class JournalClientNetwork {
                     JournalClientData.DISCOVERED_TIME.put(e.getKey(), e.getValue());
                 }
 
-
                 MobEntityCache.preload(payload.discoveries().keySet(), MinecraftClient.getInstance().world);
-
 
                 if (MinecraftClient.getInstance().currentScreen instanceof JournalScreen screen) {
                     screen.updateDiscoveredMobs();
                 }
-
 
                 MobUnlockTracker.resetSentMobs();
 
@@ -57,6 +53,7 @@ public class JournalClientNetwork {
                 }
             });
         });
+
         ClientPlayNetworking.registerGlobalReceiver(DiscoveredMobPayload.ID, (payload, context) -> {
             MinecraftClient.getInstance().execute(() -> {
                 JournalClientData.DISCOVERED.add(payload.mobId());
@@ -96,9 +93,17 @@ public class JournalClientNetwork {
             });
         });
 
+        ClientPlayNetworking.registerGlobalReceiver(OpenBlacklistScreenPayload.ID, (payload, context) -> {
+            MinecraftClient.getInstance().execute(() -> {
+                MinecraftClient mc = MinecraftClient.getInstance();
+                mc.setScreen(new BlacklistScreen(mc.currentScreen));
+            });
+        });
+
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             sender.sendPacket(ClientReadyPayload.INSTANCE);
         });
+
         ClientPlayNetworking.registerGlobalReceiver(SyncFavoritesPayload.ID, (payload, context) -> {
             MinecraftClient.getInstance().execute(() -> {
                 JournalClientData.FAVORITE_MOBS.clear();

@@ -1,28 +1,24 @@
 package net.pixeldreamstudios.journal.util;
 
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.ArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
-import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.command.argument.IdentifierArgumentType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.registry.Registries;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
-import net.pixeldreamstudios.journal.data.JournalComponents;
-import net.pixeldreamstudios.journal.network.SyncJournalPayload;
-import net.minecraft.registry.Registries;
-import net.minecraft.entity.LivingEntity;
 import net.pixeldreamstudios.journal.config.JournalConfig;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.pixeldreamstudios.journal.data.JournalComponents;
+import net.pixeldreamstudios.journal.network.OpenBlacklistScreenPayload;
+import net.pixeldreamstudios.journal.network.SyncJournalPayload;
 
 import java.util.Collections;
-import java.util.List;
 
 public class JournalCommands {
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess access) {
@@ -36,8 +32,11 @@ public class JournalCommands {
                         .then(CommandManager.argument("mob", IdentifierArgumentType.identifier())
                                 .suggests(SUGGEST_DISCOVERED_MOBS)
                                 .executes(JournalCommands::removeMob)))
+                .then(CommandManager.literal("blacklist")
+                        .executes(JournalCommands::openBlacklist))
         );
     }
+
     private static int unlockAll(CommandContext<ServerCommandSource> context) {
         ServerPlayerEntity player = context.getSource().getPlayer();
         var journal = JournalComponents.JOURNAL.get(player);
@@ -67,13 +66,13 @@ public class JournalCommands {
         return unlocked;
     }
 
-
     private static int clearAll(CommandContext<ServerCommandSource> context) {
         var player = context.getSource().getPlayer();
         var journal = JournalComponents.JOURNAL.get(player);
         journal.clearDiscovered();
 
         ServerPlayNetworking.send(player, new SyncJournalPayload(Collections.emptyMap()));
+
         context.getSource().sendFeedback(() ->
                 Text.literal("Cleared all discovered mobs in the journal."), false);
         return 1;
@@ -97,6 +96,12 @@ public class JournalCommands {
                     Text.literal("Mob not found in journal: " + id), false);
             return 0;
         }
+    }
+
+    private static int openBlacklist(CommandContext<ServerCommandSource> context) {
+        ServerPlayerEntity player = context.getSource().getPlayer();
+        ServerPlayNetworking.send(player, OpenBlacklistScreenPayload.INSTANCE);
+        return 1;
     }
 
     private static final SuggestionProvider<ServerCommandSource> SUGGEST_DISCOVERED_MOBS = (context, builder) -> {

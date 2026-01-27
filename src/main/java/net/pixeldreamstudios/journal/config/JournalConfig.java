@@ -13,6 +13,9 @@ import java.util.*;
 
 public class JournalConfig {
     private static final File CONFIG_FILE = new File("config/journal.json");
+    private static final File BLACKLIST_FILE = new File("config/journal_blacklist.json");
+    private static final File RENDER_CONFIG_FILE = new File("config/journal_render.json");
+
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     public static final String configVersion = getCurrentModVersion();
@@ -24,20 +27,19 @@ public class JournalConfig {
         INTERACT
     }
 
-    public static Set<String>     blacklistedNamespaces     = new HashSet<>();
-    public static Set<Identifier> blacklistedMobs           = new HashSet<>();
-    public static ToastPosition   toastPosition             = ToastPosition.TOP_RIGHT;
-    public static boolean         recordDiscoveryTimestamp  = true;
-    public static boolean         showDiscoveryDate         = true;
+    public static Set<Identifier> blacklistedMobs = new HashSet<>();
+    public static ToastPosition toastPosition = ToastPosition.TOP_RIGHT;
+    public static boolean recordDiscoveryTimestamp = true;
+    public static boolean showDiscoveryDate = true;
 
-    public static int    mobCheckInterval = 40;
-    public static double mobCheckRadius   = 8.0;
+    public static int mobCheckInterval = 40;
+    public static double mobCheckRadius = 8.0;
 
     public static boolean requireJournalInInventory = true;
-    public static boolean giveJournalOnJoin         = true;
+    public static boolean giveJournalOnJoin = true;
 
-    public static DiscoveryMode discoveryMode      = DiscoveryMode.NEAR;
-    public static boolean       enableTamedTrigger = false;
+    public static DiscoveryMode discoveryMode = DiscoveryMode.NEAR;
+    public static boolean enableTamedTrigger = false;
 
     public enum ToastPosition {
         TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT;
@@ -51,55 +53,87 @@ public class JournalConfig {
         try {
             if (! CONFIG_FILE.exists()) {
                 saveDefault();
-                return;
-            }
-            try (FileReader reader = new FileReader(CONFIG_FILE)) {
-                ConfigData data = GSON.fromJson(reader, ConfigData.class);
+            } else {
+                try (FileReader reader = new FileReader(CONFIG_FILE)) {
+                    ConfigData data = GSON.fromJson(reader, ConfigData.class);
+                    migrateOldConfig(data);
 
-                migrateOldConfig(data);
+                    toastPosition = ToastPosition.fromString(data.toast_position);
+                    recordDiscoveryTimestamp = getOrDefault(data.record_discovery_timestamp, true);
+                    showDiscoveryDate = getOrDefault(data.show_discovery_date, true);
+                    mobCheckInterval = data.mob_check_interval == 0 ? 40 :  data.mob_check_interval;
+                    mobCheckRadius = data.mob_check_radius == 0.0 ? 8.0 : data.mob_check_radius;
+                    requireJournalInInventory = getOrDefault(data.require_journal_in_inventory, true);
+                    giveJournalOnJoin = getOrDefault(data.give_journal_on_join, true);
 
-                blacklistedMobs.clear();
-                blacklistedNamespaces.clear();
-                if (data.blacklisted_mobs != null) {
-                    for (String idStr : data.blacklisted_mobs) {
-                        if (idStr.endsWith(":*")) {
-                            blacklistedNamespaces.add(idStr.substring(0, idStr.length() - 2));
-                        } else {
-                            Identifier id = Identifier.tryParse(idStr);
-                            if (id != null) blacklistedMobs.add(id);
-                        }
-                    }
+                    discoveryMode = parseDiscoveryMode(data.discovery_mode);
+                    enableTamedTrigger = getOrDefault(data.enable_tamed_trigger, false);
                 }
-
-                toastPosition             = ToastPosition.fromString(data.toast_position);
-                recordDiscoveryTimestamp  = getOrDefault(data.record_discovery_timestamp, true);
-                showDiscoveryDate         = getOrDefault(data.show_discovery_date, true);
-                mobCheckInterval          = data.mob_check_interval == 0 ? 40 : data.mob_check_interval;
-                mobCheckRadius            = data.mob_check_radius == 0.0 ? 8.0 :   data.mob_check_radius;
-                requireJournalInInventory = getOrDefault(data.require_journal_in_inventory, true);
-                giveJournalOnJoin         = getOrDefault(data.give_journal_on_join, true);
-
-                discoveryMode      = parseDiscoveryMode(data.discovery_mode);
-                enableTamedTrigger = getOrDefault(data.enable_tamed_trigger, false);
             }
 
+            loadBlacklist();
             loadRenderConfigs();
         } catch (Exception e) {
             System.err.println("[Journal] Failed to load config: " + e);
         }
     }
 
+    public static void loadBlacklist() {
+        blacklistedMobs.clear();
+        if (! BLACKLIST_FILE.exists()) {
+            saveBlacklist();
+            return;
+        }
+
+        try (FileReader reader = new FileReader(BLACKLIST_FILE)) {
+            BlacklistData data = GSON.fromJson(reader, BlacklistData.class);
+            if (data != null && data.blacklisted_mobs != null) {
+                for (String idStr : data.blacklisted_mobs) {
+                    Identifier id = Identifier.tryParse(idStr);
+                    if (id != null) {
+                        blacklistedMobs.add(id);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[Journal] Failed to load blacklist: " + e);
+        }
+    }
+
+    public static void saveBlacklist() {
+        try {
+            BlacklistData data = new BlacklistData();
+            data.blacklisted_mobs = blacklistedMobs.stream()
+                    .map(Identifier::toString)
+                    .sorted()
+                    .toList();
+
+            try (FileWriter writer = new FileWriter(BLACKLIST_FILE)) {
+                GSON.toJson(data, writer);
+            }
+        } catch (Exception e) {
+            System.err.println("[Journal] Failed to save blacklist:  " + e);
+        }
+    }
+
+    public static void addToBlacklist(Identifier mobId) {
+        if (blacklistedMobs.add(mobId)) {
+            saveBlacklist();
+        }
+    }
+
+    public static void removeFromBlacklist(Identifier mobId) {
+        if (blacklistedMobs.remove(mobId)) {
+            saveBlacklist();
+        }
+    }
+
     public static boolean isBlacklisted(Identifier id) {
-        return blacklistedMobs.contains(id) || blacklistedNamespaces.contains(id.getNamespace());
+        return blacklistedMobs.contains(id);
     }
 
     private static void saveDefault() {
         ConfigData def = new ConfigData();
-        def.blacklisted_mobs = List.of(
-                "minecraft:armor_stand",
-                "examplemod:badmob",
-                "examplenamespace:*"
-        );
         def.toast_position = "top_right";
         def.record_discovery_timestamp = recordDiscoveryTimestamp;
         def.show_discovery_date = showDiscoveryDate;
@@ -108,11 +142,9 @@ public class JournalConfig {
         def.current_version = configVersion;
         def.require_journal_in_inventory = requireJournalInInventory;
         def.give_journal_on_join = giveJournalOnJoin;
-
         def.discovery_mode = "NEAR";
         def.enable_tamed_trigger = false;
-
-        def.discovery_mode_options = List.of("NEAR","HIT","INTERACT","KILL");
+        def.discovery_mode_options = List.of("NEAR", "HIT", "INTERACT", "KILL");
 
         try (FileWriter writer = new FileWriter(CONFIG_FILE)) {
             GSON.toJson(def, writer);
@@ -124,14 +156,6 @@ public class JournalConfig {
     private static void migrateOldConfig(ConfigData data) {
         boolean changed = false;
 
-        if (data.blacklisted_mobs == null) {
-            data.blacklisted_mobs = List.of(
-                    "minecraft: armor_stand",
-                    "examplemod:badmob",
-                    "examplenamespace:*"
-            );
-            changed = true;
-        }
         if (data.toast_position == null) {
             data.toast_position = "top_right";
             changed = true;
@@ -173,7 +197,7 @@ public class JournalConfig {
             changed = true;
         }
         if (data.discovery_mode_options == null || data.discovery_mode_options.isEmpty()) {
-            data.discovery_mode_options = List.of("NEAR","HIT","INTERACT","KILL");
+            data.discovery_mode_options = List.of("NEAR", "HIT", "INTERACT", "KILL");
             changed = true;
         }
 
@@ -204,41 +228,47 @@ public class JournalConfig {
     private static boolean getOrDefault(Boolean b, boolean d) {
         return b == null ? d : b;
     }
+
     public static class MobRenderConfig {
         public float scale = 1.0f;
         public float xOffset = 0.0f;
         public float yOffset = 0.0f;
         public float speed = 0.6f;
         public float smoothing = 12.0f;
+        public AnimationMode animationMode = AnimationMode.WALKING;
 
         public MobRenderConfig() {}
 
-        public MobRenderConfig(float scale, float xOffset, float yOffset, float speed, float smoothing) {
+        public MobRenderConfig(float scale, float xOffset, float yOffset, float speed, float smoothing, AnimationMode animationMode) {
             this.scale = scale;
             this.xOffset = xOffset;
             this.yOffset = yOffset;
             this.speed = speed;
             this.smoothing = smoothing;
+            this.animationMode = animationMode;
         }
     }
 
-    public static void setMobRenderConfig(Identifier mobId, boolean isGridMode, float scale, float xOffset, float yOffset, float speed, float smoothing) {
+    public enum AnimationMode {
+        IDLE,
+        WALKING,
+        STATIC
+    }
+
+    public static void setMobRenderConfig(Identifier mobId, boolean isGridMode, float scale, float xOffset, float yOffset, float speed, float smoothing, AnimationMode animationMode) {
         String key = mobId.toString();
         Map<String, MobRenderConfig> configs = isGridMode ? gridRenderConfigs : detailRenderConfigs;
-        configs.put(key, new MobRenderConfig(scale, xOffset, yOffset, speed, smoothing));
+        configs.put(key, new MobRenderConfig(scale, xOffset, yOffset, speed, smoothing, animationMode));
     }
 
     public static void deleteMobRenderConfig(Identifier mobId, boolean isGridMode) {
         String key = mobId.toString();
-        Map<String, MobRenderConfig> configs = isGridMode ? gridRenderConfigs : detailRenderConfigs;
+        Map<String, MobRenderConfig> configs = isGridMode ? gridRenderConfigs :  detailRenderConfigs;
         configs.remove(key);
     }
 
     public static Map<String, MobRenderConfig> gridRenderConfigs = new HashMap<>();
     public static Map<String, MobRenderConfig> detailRenderConfigs = new HashMap<>();
-
-    private static final File RENDER_CONFIG_FILE = new File("config/journal_render.json");
-
     public static MobRenderConfig getMobRenderConfig(Identifier mobId, boolean isGridMode) {
         String key = mobId.toString();
         Map<String, MobRenderConfig> configs = isGridMode ? gridRenderConfigs : detailRenderConfigs;
@@ -247,7 +277,7 @@ public class JournalConfig {
 
     public static void loadRenderConfigs() {
         try {
-            if (! RENDER_CONFIG_FILE.exists()) {
+            if (!RENDER_CONFIG_FILE.exists()) {
                 return;
             }
             try (FileReader reader = new FileReader(RENDER_CONFIG_FILE)) {
@@ -280,24 +310,26 @@ public class JournalConfig {
         }
     }
 
+    private static class BlacklistData {
+        public List<String> blacklisted_mobs;
+    }
+
     private static class RenderConfigData {
         public Map<String, MobRenderConfig> grid_configs;
         public Map<String, MobRenderConfig> detail_configs;
     }
+
     private static class ConfigData {
-        public List<String> blacklisted_mobs;
-        public String       toast_position;
-        public Boolean      record_discovery_timestamp;
-        public Boolean      show_discovery_date;
-        public int          mob_check_interval;
-        public double       mob_check_radius;
-        public String       current_version;
-        public Boolean      require_journal_in_inventory;
-        public Boolean      give_journal_on_join;
-
-        public String  discovery_mode;
+        public String toast_position;
+        public Boolean record_discovery_timestamp;
+        public Boolean show_discovery_date;
+        public int mob_check_interval;
+        public double mob_check_radius;
+        public String current_version;
+        public Boolean require_journal_in_inventory;
+        public Boolean give_journal_on_join;
+        public String discovery_mode;
         public Boolean enable_tamed_trigger;
-
         public List<String> discovery_mode_options;
     }
 }

@@ -3,6 +3,7 @@
     "## {mobName}",
     "**Health:** {getHealth}",
     "**Armor:** {getArmor}",
+    "**Attack Damage:** {attribute.minecraft:generic.attack_damage}",
     "**Category:** {getCategory}",
     "**Tameable:** {getTameable}",
     "**Kills:** {getTimesKilled}",

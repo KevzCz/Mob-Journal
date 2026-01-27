@@ -11,6 +11,7 @@ public class JournalPayload {
         PayloadTypeRegistry.playS2C().register(SyncMobDropsPayload.ID,    SyncMobDropsPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(DiscoveredMobPayload.ID, DiscoveredMobPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(SyncFavoritesPayload.ID, SyncFavoritesPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(OpenBlacklistScreenPayload.ID, OpenBlacklistScreenPayload.CODEC);
 
 
         PayloadTypeRegistry.playC2S().register(OpenJournalPayload.ID,      OpenJournalPayload.CODEC);

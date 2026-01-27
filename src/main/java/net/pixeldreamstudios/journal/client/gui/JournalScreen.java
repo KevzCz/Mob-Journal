@@ -1,5 +1,7 @@
 package net.pixeldreamstudios.journal.client.gui;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
@@ -25,6 +27,7 @@ import java.awt.*;
 import java.util.*;
 import java.util.List;
 
+@Environment(EnvType.CLIENT)
 public class JournalScreen extends Screen {
     private static final Identifier LEFT_PAGE = Identifier.of("journal", "textures/book.png");
     private static final Identifier RIGHT_PAGE = Identifier.of("journal", "textures/book_flipped.png");
@@ -103,11 +106,14 @@ public class JournalScreen extends Screen {
         currentPageMobMap.clear();
 
         String namespaceFilter = null;
+        String tagFilter = null;
         String nameFilter = "";
 
         for (String token : searchQuery.split("\\s+")) {
             if (token.startsWith("@")) {
                 namespaceFilter = token.substring(1);
+            } else if (token.startsWith("#")) {
+                tagFilter = token.substring(1);
             } else {
                 nameFilter += token + " ";
             }
@@ -124,6 +130,17 @@ public class JournalScreen extends Screen {
 
             var type = Registries.ENTITY_TYPE.get(id);
             if (type == null) continue;
+
+            if (tagFilter != null) {
+                boolean matchesTag = false;
+                for (var tagKey : type.getRegistryEntry().streamTags().toList()) {
+                    if (tagKey.id().toString().toLowerCase().contains(tagFilter)) {
+                        matchesTag = true;
+                        break;
+                    }
+                }
+                if (!matchesTag) continue;
+            }
 
             var nameMatch = id.toString().contains(nameFilter);
             LivingEntity living = currentPageMobMap.computeIfAbsent(id, key -> {
@@ -230,7 +247,7 @@ public class JournalScreen extends Screen {
                 18,
                 Text.literal("Search...")
         );
-        searchBox.setPlaceholder(Text.literal("Search mobs..."));
+        searchBox.setPlaceholder(Text.literal("Search mobs... (@mod #tag)"));
         searchBox.setText(searchQuery);
         searchBox.setChangedListener(query -> {
             this.searchQuery = query.toLowerCase().trim();
@@ -546,6 +563,7 @@ public class JournalScreen extends Screen {
         MinecraftClient client = MinecraftClient.getInstance();
         EntityRenderDispatcher dispatcher = client.getEntityRenderDispatcher();
         MatrixStack matrices = context.getMatrices();
+
         matrices.push();
         matrices.translate(adjustedX, adjustedY, 100.0);
         matrices.scale(adjustedScale, -adjustedScale, adjustedScale);
@@ -555,63 +573,99 @@ public class JournalScreen extends Screen {
             CachedPose pose = poseCache.computeIfAbsent(mobId, k -> new CachedPose());
             long now = System.currentTimeMillis();
 
-            if (!pose.initialized) {
+            if (! pose.initialized) {
                 pose.limbSwingAmount = config.speed;
                 pose.initialized = true;
             }
 
-            float prevLimbSwing = pose.limbSwing;
+            float limbSwing = 0f;
+            float prevLimbSwing = 0f;
+            float limbSwingAmount = 0f;
 
-            long elapsed = now - pose.lastUpdated;
-            if (elapsed > 0) {
-                pose.limbSwing += (elapsed / 1000.0f) * config.smoothing;
-                pose.lastUpdated = now;
-            }
-
-            pose.prevYaw = pose.yaw;
-            pose.yaw = (now % 8000L) / 8000.0f * 360F;
-            pose.age = (int)(now / 50L);
-
-            entity.age = pose.age;
-            entity.prevBodyYaw = pose.prevYaw;
-            entity.bodyYaw = pose.yaw;
-            entity.prevYaw = pose.prevYaw;
-            entity.setYaw(pose.yaw);
-            entity.setPitch(0.0f);
-            entity.prevHeadYaw = pose.prevYaw;
-            entity.headYaw = pose.yaw;
-
-            if (entity instanceof EnderDragonEntity dragon) {
-                dragon.prevWingPosition = dragon.wingPosition;
-                dragon.wingPosition += 0.1f;
-                if (dragon.wingPosition > 1.0f) {
-                    dragon.wingPosition = 0.0f;
+            switch (config.animationMode) {
+                case IDLE -> {
+                    long elapsed = now - pose.lastUpdated;
+                    if (elapsed > 0) {
+                        pose.limbSwing += (elapsed / 1000.0f) * (config.smoothing * 0.3f);
+                        pose.lastUpdated = now;
+                    }
+                    limbSwing = (float) Math.sin(pose.limbSwing * 0.3f) * 0.5f;
+                    prevLimbSwing = (float) Math.sin((pose.limbSwing - 0.1f) * 0.3f) * 0.5f;
+                    limbSwingAmount = 0.1f;
                 }
-
-                dragon.prevYaw = pose.prevYaw;
-                dragon.setYaw(pose.yaw);
-                dragon.bodyYaw = pose.yaw;
-                dragon.prevBodyYaw = pose.prevYaw;
-                dragon.headYaw = pose.yaw;
-                dragon.prevHeadYaw = pose.prevYaw;
+                case WALKING -> {
+                    prevLimbSwing = pose.limbSwing;
+                    long elapsed = now - pose.lastUpdated;
+                    if (elapsed > 0) {
+                        pose.limbSwing += (elapsed / 1000.0f) * config.smoothing;
+                        pose.lastUpdated = now;
+                    }
+                    limbSwing = pose.limbSwing;
+                    limbSwingAmount = config.speed;
+                }
+                case STATIC -> {
+                    limbSwing = 0f;
+                    prevLimbSwing = 0f;
+                    limbSwingAmount = 0f;
+                }
             }
 
-            net.pixeldreamstudios.journal.client.gui.AnimationOverride.set(entity, pose.limbSwing, prevLimbSwing, config.speed);
+            if (config.animationMode != JournalConfig.AnimationMode.STATIC) {
+                pose.prevYaw = pose.yaw;
+                pose.yaw = (now % 8000L) / 8000.0f * 360F;
+                pose.age = (int)(now / 50L);
+
+                entity.age = pose.age;
+                entity.prevBodyYaw = pose.prevYaw;
+                entity.bodyYaw = pose.yaw;
+                entity.prevYaw = pose.prevYaw;
+                entity.setYaw(pose.yaw);
+                entity.setPitch(0.0f);
+                entity.prevHeadYaw = pose.prevYaw;
+                entity.headYaw = pose.yaw;
+
+                if (entity instanceof EnderDragonEntity dragon) {
+                    dragon.prevWingPosition = dragon.wingPosition;
+                    dragon.wingPosition += 0.1f;
+                    if (dragon.wingPosition > 1.0f) {
+                        dragon.wingPosition = 0.0f;
+                    }
+
+                    dragon.prevYaw = pose.prevYaw;
+                    dragon.setYaw(pose.yaw);
+                    dragon.bodyYaw = pose.yaw;
+                    dragon.prevBodyYaw = pose.prevYaw;
+                    dragon.headYaw = pose.yaw;
+                    dragon.prevHeadYaw = pose.prevYaw;
+                }
+            } else {
+                entity.setYaw(0f);
+                entity.setPitch(0f);
+                entity.bodyYaw = 0f;
+                entity.prevBodyYaw = 0f;
+                entity.headYaw = 0f;
+                entity.prevHeadYaw = 0f;
+            }
+
+            net.pixeldreamstudios.journal.client.gui.AnimationOverride.set(entity, limbSwing, prevLimbSwing, limbSwingAmount);
 
             dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, delta, matrices, context.getVertexConsumers(), 0xF000F0);
         } catch (Throwable t) {
+            matrices.pop();
             TextRenderer renderer = client.textRenderer;
-            int textWidth = renderer.getWidth("Can't render mob");
+            String errorText = "Can't render mob";
+            int textWidth = renderer.getWidth(errorText);
             context.drawTextWithShadow(
                     renderer,
-                    Text.literal("Can't render mob"),
+                    Text.literal(errorText),
                     adjustedX - textWidth / 2,
                     adjustedY - 10,
                     0xFF5555
             );
-        } finally {
-            matrices.pop();
+            return;
         }
+
+        matrices.pop();
     }
 
     @Override
@@ -619,8 +673,24 @@ public class JournalScreen extends Screen {
         for (MobSlot slot : mobSlots) {
             if (slot.isHovered((int) mouseX, (int) mouseY)) {
                 boolean altPressed = net.minecraft.client.gui.screen.Screen.hasAltDown();
+                boolean shiftPressed = net.minecraft.client.gui.screen.Screen.hasShiftDown();
 
-                if (altPressed && button == 0) {
+                if (altPressed && shiftPressed && button == 0) {
+                    JournalConfig.addToBlacklist(slot.id);
+                    JournalClientData.DISCOVERED.remove(slot.id);
+                    updateFilteredList();
+                    updateButtons();
+
+                    if (MinecraftClient.getInstance().player != null) {
+                        MinecraftClient.getInstance().player.sendMessage(
+                                Text.literal("§eBlacklisted:  §f" + slot.id.toString()),
+                                true
+                        );
+                    }
+                    return true;
+                }
+
+                if (altPressed && ! shiftPressed && button == 0) {
                     MinecraftClient.getInstance().setScreen(
                             new MobRenderConfigScreen(this, slot.id, true)
                     );

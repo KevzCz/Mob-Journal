@@ -1,5 +1,7 @@
 package net.pixeldreamstudios.journal.client.gui;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
@@ -20,7 +22,6 @@ import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
-import net.minecraft.world.World;
 import net.pixeldreamstudios.journal.client.JournalClientData;
 import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.network.RequestMobDropsPayload;
@@ -34,9 +35,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
+@Environment(EnvType.CLIENT)
 public class MobDetailsScreen extends Screen {
     private static final Identifier LEFT_PAGE = Identifier.of("journal", "textures/book.png");
     private static final Identifier RIGHT_PAGE = Identifier.of("journal", "textures/book_flipped.png");
+
     private final int returnPage;
     private boolean isFavorite;
     private ButtonWidget favButton;
@@ -62,6 +65,10 @@ public class MobDetailsScreen extends Screen {
     private int mobRenderY = -1;
     private int mobRenderWidth = -1;
     private int mobRenderHeight = -1;
+
+    private boolean isDraggingMob = false;
+    private double lastDragX = 0;
+    private float manualRotation = 0f;
 
     private static class CachedPose {
         float yaw;
@@ -126,7 +133,7 @@ public class MobDetailsScreen extends Screen {
         String[] parts = namespace.split("_");
         StringBuilder builder = new StringBuilder();
         for (String part : parts) {
-            if (!  part.isEmpty()) {
+            if (! part.isEmpty()) {
                 builder.append(Character.toUpperCase(part.charAt(0)));
                 builder.append(part.substring(1));
                 builder.append(" ");
@@ -137,14 +144,13 @@ public class MobDetailsScreen extends Screen {
 
     @Override
     protected void init() {
-        World world = MinecraftClient.getInstance().world;
+        var mc = MinecraftClient.getInstance();
+        var world = mc.world;
         this.isFavorite = JournalClientData.FAVORITE_MOBS.contains(mobId);
 
         if (world != null) {
             LivingEntity cached = MobEntityCache.get(mobId, world);
-            if (cached != null) {
-                this.mob = cached;
-            }
+            if (cached != null) this.mob = cached;
         }
 
         JournalClientData.LAST_DROPS.clear();
@@ -153,6 +159,7 @@ public class MobDetailsScreen extends Screen {
         List<List<ParsedLine>> allLines = mob != null
                 ?  net.pixeldreamstudios.journal.data.MobDescriptionLoader.getDescription(mobId, mob)
                 : List.of(List.of(new ParsedLine(Text.literal("§cUnknown mob"))));
+
         if (MarkdownParser.containsPlaceholder(allLines, "{getLootDrops}")) {
             List<ParsedLine> dropIcons = new ArrayList<>();
             for (ItemStack stack : JournalClientData.LAST_DROPS) {
@@ -160,11 +167,9 @@ public class MobDetailsScreen extends Screen {
                 icon.scale = 1.0f;
                 dropIcons.add(icon);
             }
-
             if (dropIcons.isEmpty()) {
                 dropIcons.add(new ParsedLine(Text.literal("§7(No known drops)")));
             }
-
             MarkdownParser.replacePlaceholder(allLines, "{getLootDrops}", dropIcons);
         }
 
@@ -181,11 +186,9 @@ public class MobDetailsScreen extends Screen {
                 btn -> {
                     isFavorite = !isFavorite;
                     ClientPlayNetworking.send(new ToggleFavoritePayload(mobId, isFavorite));
-                    btn.setMessage(Text.literal(isFavorite ?   "★" : "☆").styled(style -> style.withColor(0xFFFF55)));
+                    btn.setMessage(Text.literal(isFavorite ?  "★" : "☆").styled(style -> style.withColor(0xFFFF55)));
                 }
-        ).dimensions(0, 0, 18, 18).tooltip(
-                Tooltip.of(Text.literal("Toggle Favorite"))
-        ).build();
+        ).dimensions(0, 0, 18, 18).tooltip(Tooltip.of(Text.literal("Toggle Favorite"))).build();
         this.addDrawableChild(favButton);
 
         int buttonY = y + pageHeight - 20;
@@ -235,11 +238,42 @@ public class MobDetailsScreen extends Screen {
             int currentLineHeight = 0;
 
             for (ParsedLine part : inputRow) {
+                if (part.isText()) {
+                    String text = part.text.getString();
+                    int textWidth = renderer.getWidth(text);
+
+                    if (textWidth > wrapWidth) {
+                        List<ParsedLine> wrappedParts = wrapTextPart(part, wrapWidth, renderer);
+                        for (ParsedLine wrappedPart : wrappedParts) {
+                            int width = renderer.getWidth(wrappedPart.text);
+                            int height = renderer.fontHeight;
+
+                            if (currentLineWidth + width > wrapWidth && !currentLine.isEmpty()) {
+                                if (currentHeight + currentLineHeight > maxHeight) {
+                                    paginatedLines.add(currentPage);
+                                    currentPage = new ArrayList<>();
+                                    currentHeight = 0;
+                                }
+                                currentPage.add(currentLine);
+                                currentHeight += currentLineHeight + 4;
+                                currentLine = new ArrayList<>();
+                                currentLineWidth = 0;
+                                currentLineHeight = 0;
+                            }
+
+                            currentLine.add(wrappedPart);
+                            currentLineWidth += width + 2;
+                            currentLineHeight = Math.max(currentLineHeight, height);
+                        }
+                        continue;
+                    }
+                }
+
                 float scale = part.scale <= 0 ? 1.0f : part.scale;
                 int width = part.isText() ? renderer.getWidth(part.text) : (int) (16 * scale);
                 int height = part.isText() ? renderer.fontHeight : (int) (16 * scale);
 
-                if (currentLineWidth + width > wrapWidth && !  currentLine.isEmpty()) {
+                if (currentLineWidth + width > wrapWidth && !currentLine.isEmpty()) {
                     if (currentHeight + currentLineHeight > maxHeight) {
                         paginatedLines.add(currentPage);
                         currentPage = new ArrayList<>();
@@ -257,8 +291,8 @@ public class MobDetailsScreen extends Screen {
                 currentLineHeight = Math.max(currentLineHeight, height);
             }
 
-            if (!  currentLine.isEmpty()) {
-                if (currentHeight + currentLineHeight > maxHeight && ! currentPage.isEmpty()) {
+            if (!currentLine.isEmpty()) {
+                if (currentHeight + currentLineHeight > maxHeight && !currentPage.isEmpty()) {
                     paginatedLines.add(currentPage);
                     currentPage = new ArrayList<>();
                     currentHeight = 0;
@@ -295,6 +329,34 @@ public class MobDetailsScreen extends Screen {
         }
     }
 
+    private List<ParsedLine> wrapTextPart(ParsedLine original, int maxWidth, TextRenderer renderer) {
+        List<ParsedLine> result = new ArrayList<>();
+
+        List<OrderedText> wrappedLines = renderer.wrapLines(original.text, maxWidth);
+
+        for (OrderedText orderedText : wrappedLines) {
+            StringBuilder sb = new StringBuilder();
+            orderedText.accept((index, style, codePoint) -> {
+                sb.appendCodePoint(codePoint);
+                return true;
+            });
+
+            Text wrappedText = Text.literal(sb.toString()).setStyle(original.text.getStyle());
+            ParsedLine wrapped = new ParsedLine(wrappedText);
+            wrapped.scale = original.scale;
+            if (original.hasTooltip()) {
+                wrapped.tooltip = original.tooltip;
+            }
+            result.add(wrapped);
+        }
+
+        if (result.isEmpty()) {
+            result.add(original);
+        }
+
+        return result;
+    }
+
     private void updatePageButtons() {
         backDescButton.visible = descPage > 0;
         nextButton.visible = descPage < paginatedLines.size() - 1;
@@ -314,6 +376,12 @@ public class MobDetailsScreen extends Screen {
                     );
                     return true;
                 }
+
+                if (button == 0 && !altPressed) {
+                    isDraggingMob = true;
+                    lastDragX = mouseX;
+                    return true;
+                }
             }
         }
 
@@ -329,6 +397,25 @@ public class MobDetailsScreen extends Screen {
             }
         }
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (button == 0) {
+            isDraggingMob = false;
+        }
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        if (isDraggingMob && button == 0) {
+            double dragDelta = mouseX - lastDragX;
+            manualRotation += (float) dragDelta * 2.0f;
+            lastDragX = mouseX;
+            return true;
+        }
+        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
     }
 
     @Override
@@ -394,7 +481,7 @@ public class MobDetailsScreen extends Screen {
                 int lineHeight = 0;
 
                 for (ParsedLine part : row) {
-                    float scale = part.scale <= 0 ? 1.0f :   part.scale;
+                    float scale = part.scale <= 0 ? 1.0f :  part.scale;
                     int drawX = descSlotX + 5 + xOffset;
                     int drawY = descSlotY + yOffset;
 
@@ -453,7 +540,7 @@ public class MobDetailsScreen extends Screen {
 
                         if (mouseX >= drawX && mouseX <= drawX + iconSize &&
                                 mouseY >= drawY && mouseY <= drawY + iconSize) {
-                            List<Text> tooltip = getEffectiveTooltip(part, part.item, mouseX, mouseY);
+                            List<Text> tooltip = getEffectiveTooltip(part, part.item);
                             context.drawTooltip(renderer, tooltip, mouseX, mouseY);
                         }
 
@@ -488,12 +575,13 @@ public class MobDetailsScreen extends Screen {
 
     private final Map<LivingEntity, Boolean> animatedEntities = new WeakHashMap<>();
 
-    private List<Text> getEffectiveTooltip(ParsedLine part, ItemStack item, int mouseX, int mouseY) {
+    private List<Text> getEffectiveTooltip(ParsedLine part, ItemStack item) {
         if (part.isItem()) {
-            if (part.hasExplicitTooltip && part.tooltip != null && !  part.tooltip.getString().isBlank()) {
+            if (part.hasExplicitTooltip && part.tooltip != null && !part.tooltip.getString().isBlank()) {
                 return List.of(part.tooltip);
             }
 
+            var mc = MinecraftClient.getInstance();
             return item.getTooltip(
                     new Item.TooltipContext() {
                         @Override public RegistryWrapper.WrapperLookup getRegistryLookup() { return null; }
@@ -501,22 +589,19 @@ public class MobDetailsScreen extends Screen {
                         @Override public MapState getMapState(MapIdComponent component) { return null; }
 
                         public boolean isAdvanced() {
-                            return MinecraftClient.getInstance().options.advancedItemTooltips;
+                            return mc.options.advancedItemTooltips;
                         }
 
                         public boolean isCreative() {
-                            return MinecraftClient.getInstance().player != null &&
-                                    MinecraftClient.getInstance().player.isCreative();
+                            return mc.player != null && mc.player.isCreative();
                         }
                     },
-                    MinecraftClient.getInstance().player,
-                    MinecraftClient.getInstance().options.advancedItemTooltips
-                            ? TooltipType.ADVANCED
-                            : TooltipType.BASIC
+                    mc.player,
+                    mc.options.advancedItemTooltips ? TooltipType.ADVANCED : TooltipType.BASIC
             );
         }
 
-        if (part.tooltip != null && ! part.tooltip.getString().isBlank()) {
+        if (part.tooltip != null && !part.tooltip.getString().isBlank()) {
             return List.of(part.tooltip);
         }
         return List.of();
@@ -542,31 +627,65 @@ public class MobDetailsScreen extends Screen {
             CachedPose pose = poseCache.computeIfAbsent(mobId, k -> new CachedPose());
             long now = System.currentTimeMillis();
 
-            if (!  pose.initialized) {
+            if (! pose.initialized) {
                 pose.limbSwingAmount = config.speed;
                 pose.initialized = true;
             }
 
-            float prevLimbSwing = pose.limbSwing;
+            float limbSwing = 0f;
+            float prevLimbSwing = 0f;
+            float limbSwingAmount = 0f;
 
-            long elapsed = now - pose.lastUpdated;
-            if (elapsed > 0) {
-                pose.limbSwing += (elapsed / 1000.0f) * config.smoothing;
-                pose.lastUpdated = now;
+            switch (config.animationMode) {
+                case IDLE -> {
+                    long elapsed = now - pose.lastUpdated;
+                    if (elapsed > 0) {
+                        pose.limbSwing += (elapsed / 1000.0f) * (config.smoothing * 0.3f);
+                        pose.lastUpdated = now;
+                    }
+                    limbSwing = (float) Math.sin(pose.limbSwing * 0.3f) * 0.5f;
+                    prevLimbSwing = (float) Math.sin((pose.limbSwing - 0.1f) * 0.3f) * 0.5f;
+                    limbSwingAmount = 0.1f;
+                }
+                case WALKING -> {
+                    prevLimbSwing = pose.limbSwing;
+                    long elapsed = now - pose.lastUpdated;
+                    if (elapsed > 0) {
+                        pose.limbSwing += (elapsed / 1000.0f) * config.smoothing;
+                        pose.lastUpdated = now;
+                    }
+                    limbSwing = pose.limbSwing;
+                    limbSwingAmount = config.speed;
+                }
+                case STATIC -> {
+                    limbSwing = 0f;
+                    prevLimbSwing = 0f;
+                    limbSwingAmount = 0f;
+                }
             }
 
-            pose.prevYaw = pose.yaw;
-            pose.yaw = (now % 8000L) / 8000.0f * 360F;
-            pose.age = (int)(now / 50L);
+            float finalYaw;
+            if (isDraggingMob) {
+                finalYaw = manualRotation;
+            } else {
+                if (config.animationMode != JournalConfig.AnimationMode.STATIC) {
+                    pose.prevYaw = pose.yaw;
+                    pose.yaw = (now % 8000L) / 8000.0f * 360F;
+                    finalYaw = pose.yaw;
+                } else {
+                    finalYaw = 0f;
+                }
+            }
 
+            pose.age = (int)(now / 50L);
             entity.age = pose.age;
-            entity.prevBodyYaw = pose.prevYaw;
-            entity.bodyYaw = pose.yaw;
-            entity.prevYaw = pose.prevYaw;
-            entity.setYaw(pose.yaw);
+            entity.prevBodyYaw = finalYaw;
+            entity.bodyYaw = finalYaw;
+            entity.prevYaw = finalYaw;
+            entity.setYaw(finalYaw);
             entity.setPitch(0.0f);
-            entity.prevHeadYaw = pose.prevYaw;
-            entity.headYaw = pose.yaw;
+            entity.prevHeadYaw = finalYaw;
+            entity.headYaw = finalYaw;
 
             if (entity instanceof EnderDragonEntity dragon) {
                 dragon.prevWingPosition = dragon.wingPosition;
@@ -575,15 +694,15 @@ public class MobDetailsScreen extends Screen {
                     dragon.wingPosition = 0.0f;
                 }
 
-                dragon.prevYaw = pose.prevYaw;
-                dragon.setYaw(pose.yaw);
-                dragon.bodyYaw = pose.yaw;
-                dragon.prevBodyYaw = pose.prevYaw;
-                dragon.headYaw = pose.yaw;
-                dragon.prevHeadYaw = pose.prevYaw;
+                dragon.prevYaw = finalYaw;
+                dragon.setYaw(finalYaw);
+                dragon.bodyYaw = finalYaw;
+                dragon.prevBodyYaw = finalYaw;
+                dragon.headYaw = finalYaw;
+                dragon.prevHeadYaw = finalYaw;
             }
 
-            net.pixeldreamstudios.journal.client.gui.AnimationOverride.set(entity, pose.limbSwing, prevLimbSwing, config.speed);
+            net.pixeldreamstudios.journal.client.gui.AnimationOverride.set(entity, limbSwing, prevLimbSwing, limbSwingAmount);
 
             dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, delta, matrices, context.getVertexConsumers(), 0xF000F0);
         } catch (Throwable t) {

@@ -1,5 +1,7 @@
 package net.pixeldreamstudios.journal.client.toast;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.render.entity.EntityRenderDispatcher;
@@ -15,7 +17,7 @@ import net.minecraft.world.World;
 import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.events.JournalSounds;
 import net.pixeldreamstudios.journal.item.JournalItems;
-
+@Environment(EnvType.CLIENT)
 public class MobDiscoveredToast implements Toast {
     private final EntityType<?> entityType;
     private final Text description;
