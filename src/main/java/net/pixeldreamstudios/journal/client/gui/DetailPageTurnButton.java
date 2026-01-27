@@ -1,12 +1,14 @@
 package net.pixeldreamstudios.journal.client.gui;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
-
+@Environment(EnvType.CLIENT)
 public class DetailPageTurnButton {
     private static final Identifier ARROW_TEXTURE = Identifier.of("journal", "textures/arrow-icon.png");
     private static final Identifier ARROW_HOVER_TEXTURE = Identifier.of("journal", "textures/arrow-icon-hover.png");

@@ -11,6 +11,7 @@ import net.minecraft.util.Identifier;
 import net.pixeldreamstudios.journal.client.JournalClient;
 import net.pixeldreamstudios.journal.client.JournalClientData;
 import net.pixeldreamstudios.journal.client.MobUnlockTracker;
+import net.pixeldreamstudios.journal.client.gui.BlacklistScreen;
 import net.pixeldreamstudios.journal.client.gui.JournalScreen;
 import net.pixeldreamstudios.journal.client.gui.MobDetailsScreen;
 import net.pixeldreamstudios.journal.client.toast.MobDiscoveredToast;
@@ -87,7 +88,10 @@ public class JournalClientNetwork {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             ClientReadyPayload.sendToServer();
         });
-
+        OpenBlacklistScreenPayload.registerS2C(payload -> {
+            var mc = MinecraftClient.getInstance();
+            mc.setScreen(new BlacklistScreen(mc.currentScreen));
+        });
         SyncFavoritesPayload.registerS2C(payload -> {
             var mc = MinecraftClient.getInstance();
             JournalClientData.FAVORITE_MOBS.clear();

@@ -14,10 +14,10 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.data.JournalComponents;
+import net.pixeldreamstudios.journal.network.OpenBlacklistScreenPayload;
 import net.pixeldreamstudios.journal.network.SyncJournalPayload;
 
 import java.util.Collections;
-import java.util.Map;
 
 public class JournalCommands {
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess access) {
@@ -26,11 +26,13 @@ public class JournalCommands {
                 .then(CommandManager.literal("unlock_all")
                         .executes(JournalCommands::unlockAll))
                 .then(CommandManager.literal("clear_all")
-                        .executes(JournalCommands::clearAll))
+                        .executes(JournalCommands:: clearAll))
                 .then(CommandManager.literal("remove")
                         .then(CommandManager.argument("mob", IdentifierArgumentType.identifier())
                                 .suggests(SUGGEST_DISCOVERED_MOBS)
                                 .executes(JournalCommands::removeMob)))
+                .then(CommandManager.literal("blacklist")
+                        .executes(JournalCommands:: openBlacklist))
         );
     }
 
@@ -40,8 +42,8 @@ public class JournalCommands {
 
         int unlocked = 0;
 
-        for (var type : Registries.ENTITY_TYPE) {
-            if (!type.isSummonable()) continue;
+        for (var type :  Registries.ENTITY_TYPE) {
+            if (! type.isSummonable()) continue;
 
             var entity = type.create(player.getWorld());
             if (!(entity instanceof LivingEntity)) continue;
@@ -82,7 +84,7 @@ public class JournalCommands {
 
         if (journal.removeMob(id)) {
             context.getSource().sendFeedback(() ->
-                    Text.literal("Removed mob from journal: " + id), false);
+                    Text.literal("Removed mob from journal:  " + id), false);
 
             SyncJournalPayload.sendToClient(player, journal.getDiscovered());
 
@@ -92,6 +94,12 @@ public class JournalCommands {
                     Text.literal("Mob not found in journal: " + id), false);
             return 0;
         }
+    }
+
+    private static int openBlacklist(CommandContext<ServerCommandSource> context) {
+        ServerPlayerEntity player = context.getSource().getPlayer();
+        OpenBlacklistScreenPayload.sendToClient(player);
+        return 1;
     }
 
     private static final SuggestionProvider<ServerCommandSource> SUGGEST_DISCOVERED_MOBS = (context, builder) -> {

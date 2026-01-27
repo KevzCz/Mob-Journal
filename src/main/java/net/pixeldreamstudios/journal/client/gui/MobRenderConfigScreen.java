@@ -1,5 +1,7 @@
 package net.pixeldreamstudios.journal.client.gui;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
@@ -18,6 +20,7 @@ import net.pixeldreamstudios.journal.util.MobEntityCache;
 
 import java.util.Map;
 
+@Environment(EnvType.CLIENT)
 public class MobRenderConfigScreen extends Screen {
     private final Screen parent;
     private final Identifier mobId;
@@ -35,12 +38,15 @@ public class MobRenderConfigScreen extends Screen {
     private TextFieldWidget speedField;
     private TextFieldWidget smoothingField;
 
+    private ButtonWidget animationModeButton;
+
     private LivingEntity previewEntity;
     private float currentScale;
     private float currentXOffset;
     private float currentYOffset;
     private float currentSpeed;
     private float currentSmoothing;
+    private JournalConfig.AnimationMode currentAnimationMode;
 
     private final Map<Identifier, CachedPose> poseCache = new java.util.HashMap<>();
 
@@ -97,7 +103,7 @@ public class MobRenderConfigScreen extends Screen {
 
         @Override
         protected void applyValue() {
-            if (!  updatingFromExternal) {
+            if (!updatingFromExternal) {
                 currentValue = min + (float) (value * (max - min));
                 if (onChange != null) {
                     onChange.accept(currentValue);
@@ -139,6 +145,7 @@ public class MobRenderConfigScreen extends Screen {
         this.currentYOffset = config.yOffset;
         this.currentSpeed = config.speed;
         this.currentSmoothing = config.smoothing;
+        this.currentAnimationMode = config.animationMode;
     }
 
     @Override
@@ -163,7 +170,7 @@ public class MobRenderConfigScreen extends Screen {
         int previewMinHeight = 30;
 
         int availableHeight = this.height - headerHeight - footerHeight;
-        int sliderAreaHeight = (sliderHeight * 5) + (sliderSpacing * 4);
+        int sliderAreaHeight = (sliderHeight * 5) + (sliderSpacing * 4) + sliderHeight + sliderSpacing;
         int buttonAreaHeight = (buttonHeight * 2) + buttonSpacing;
 
         int totalNeededHeight = sliderAreaHeight + buttonAreaHeight + 10;
@@ -193,7 +200,7 @@ public class MobRenderConfigScreen extends Screen {
                 "Scale", 0.1f, 10.0f, Math.max(0.1f, Math.min(10.0f, currentScale)),
                 val -> {
                     currentScale = val;
-                    if (!  scaleField.isFocused()) {
+                    if (! scaleField.isFocused()) {
                         scaleField.setText(String.format("%.2f", val));
                     }
                 }
@@ -219,7 +226,7 @@ public class MobRenderConfigScreen extends Screen {
                 "X Offset", -100f, 100f, Math.max(-100f, Math.min(100f, currentXOffset)),
                 val -> {
                     currentXOffset = val;
-                    if (! xOffsetField.isFocused()) {
+                    if (!xOffsetField.isFocused()) {
                         xOffsetField.setText(String.format("%.2f", val));
                     }
                 }
@@ -318,17 +325,34 @@ public class MobRenderConfigScreen extends Screen {
         });
         this.addSelectableChild(smoothingField);
 
-        int buttonY = startY + sliderSpacing * 5 + 3;
-        int totalButtonWidth = sliderWidth + gap + fieldWidth;
-        int buttonWidth = Math.max(40, (totalButtonWidth - buttonSpacing * 3) / 4);
+        int animButtonY = startY + sliderSpacing * 5;
+        int animButtonWidth = sliderWidth + gap + fieldWidth;
+        int animButtonX = centerX - animButtonWidth / 2;
 
-        int buttonRowWidth = (buttonWidth * 4) + (buttonSpacing * 3);
+        this.animationModeButton = ButtonWidget.builder(
+                Text.literal("Animation: " + currentAnimationMode.name()),
+                btn -> {
+                    currentAnimationMode = switch (currentAnimationMode) {
+                        case IDLE -> JournalConfig.AnimationMode.WALKING;
+                        case WALKING -> JournalConfig.AnimationMode.STATIC;
+                        case STATIC -> JournalConfig.AnimationMode.IDLE;
+                    };
+                    btn.setMessage(Text.literal("Animation: " + currentAnimationMode.name()));
+                }
+        ).dimensions(animButtonX, animButtonY, animButtonWidth, sliderHeight).build();
+        this.addDrawableChild(animationModeButton);
+
+        int buttonY = animButtonY + sliderSpacing;
+        int totalButtonWidth = sliderWidth + gap + fieldWidth;
+        int buttonWidth = Math.max(40, (totalButtonWidth - buttonSpacing * 4) / 5);
+
+        int buttonRowWidth = (buttonWidth * 5) + (buttonSpacing * 4);
         int buttonStartX = centerX - buttonRowWidth / 2;
 
         ButtonWidget saveButton = ButtonWidget.builder(
                 Text.literal("Save"),
                 btn -> {
-                    JournalConfig.setMobRenderConfig(mobId, isGridMode, currentScale, currentXOffset, currentYOffset, currentSpeed, currentSmoothing);
+                    JournalConfig.setMobRenderConfig(mobId, isGridMode, currentScale, currentXOffset, currentYOffset, currentSpeed, currentSmoothing, currentAnimationMode);
                     JournalConfig.saveRenderConfigs();
                     MinecraftClient.getInstance().setScreen(parent);
                 }
@@ -343,6 +367,7 @@ public class MobRenderConfigScreen extends Screen {
                     currentYOffset = 0.0f;
                     currentSpeed = 0.6f;
                     currentSmoothing = 12.0f;
+                    currentAnimationMode = JournalConfig.AnimationMode.WALKING;
                     scaleSlider.setValueFromExternal(currentScale);
                     xOffsetSlider.setValueFromExternal(currentXOffset);
                     yOffsetSlider.setValueFromExternal(currentYOffset);
@@ -353,6 +378,7 @@ public class MobRenderConfigScreen extends Screen {
                     yOffsetField.setText(String.format("%.2f", currentYOffset));
                     speedField.setText(String.format("%.2f", currentSpeed));
                     smoothingField.setText(String.format("%.2f", currentSmoothing));
+                    animationModeButton.setMessage(Text.literal("Animation: " + currentAnimationMode.name()));
                 }
         ).dimensions(buttonStartX + buttonWidth + buttonSpacing, buttonY, buttonWidth, buttonHeight).build();
         this.addDrawableChild(resetButton);
@@ -366,6 +392,7 @@ public class MobRenderConfigScreen extends Screen {
                     currentYOffset = otherConfig.yOffset;
                     currentSpeed = otherConfig.speed;
                     currentSmoothing = otherConfig.smoothing;
+                    currentAnimationMode = otherConfig.animationMode;
                     scaleSlider.setValueFromExternal(currentScale);
                     xOffsetSlider.setValueFromExternal(currentXOffset);
                     yOffsetSlider.setValueFromExternal(currentYOffset);
@@ -376,17 +403,37 @@ public class MobRenderConfigScreen extends Screen {
                     yOffsetField.setText(String.format("%.2f", currentYOffset));
                     speedField.setText(String.format("%.2f", currentSpeed));
                     smoothingField.setText(String.format("%.2f", currentSmoothing));
+                    animationModeButton.setMessage(Text.literal("Animation: " + currentAnimationMode.name()));
                 }
         ).dimensions(buttonStartX + (buttonWidth + buttonSpacing) * 2, buttonY, buttonWidth, buttonHeight).build();
         copyButton.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(
-                Text.literal("From " + (isGridMode ? "Detail" : "Grid"))
+                Text.literal("Copy from " + (isGridMode ? "Detail" : "Grid"))
         ));
         this.addDrawableChild(copyButton);
+
+        ButtonWidget pasteButton = ButtonWidget.builder(
+                Text.literal("Paste"),
+                btn -> {
+                    JournalConfig.setMobRenderConfig(mobId, !isGridMode, currentScale, currentXOffset, currentYOffset, currentSpeed, currentSmoothing, currentAnimationMode);
+                    JournalConfig.saveRenderConfigs();
+
+                    if (MinecraftClient.getInstance().player != null) {
+                        MinecraftClient.getInstance().player.sendMessage(
+                                Text.literal("§aPasted to " + (isGridMode ? "Detail" : "Grid")),
+                                true
+                        );
+                    }
+                }
+        ).dimensions(buttonStartX + (buttonWidth + buttonSpacing) * 3, buttonY, buttonWidth, buttonHeight).build();
+        pasteButton.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(
+                Text.literal("Paste to " + (isGridMode ? "Detail" : "Grid"))
+        ));
+        this.addDrawableChild(pasteButton);
 
         ButtonWidget cancelButton = ButtonWidget.builder(
                 Text.literal("Back"),
                 btn -> MinecraftClient.getInstance().setScreen(parent)
-        ).dimensions(buttonStartX + (buttonWidth + buttonSpacing) * 3, buttonY, buttonWidth, buttonHeight).build();
+        ).dimensions(buttonStartX + (buttonWidth + buttonSpacing) * 4, buttonY, buttonWidth, buttonHeight).build();
         this.addDrawableChild(cancelButton);
 
         ButtonWidget deleteButton = ButtonWidget.builder(
@@ -466,48 +513,81 @@ public class MobRenderConfigScreen extends Screen {
             CachedPose pose = poseCache.computeIfAbsent(mobId, k -> new CachedPose());
             long now = System.currentTimeMillis();
 
-            if (!  pose.initialized) {
+            if (! pose.initialized) {
                 pose.limbSwingAmount = currentSpeed;
                 pose.initialized = true;
             }
 
-            float prevLimbSwing = pose.limbSwing;
+            float limbSwing = 0f;
+            float prevLimbSwing = 0f;
+            float limbSwingAmount = 0f;
 
-            long elapsed = now - pose.lastUpdated;
-            if (elapsed > 0) {
-                pose.limbSwing += (elapsed / 1000.0f) * currentSmoothing;
-                pose.lastUpdated = now;
-            }
-
-            pose.prevYaw = pose.yaw;
-            pose.yaw = (now % 8000L) / 8000.0f * 360F;
-            pose.age = (int) (now / 50L);
-
-            entity.age = pose.age;
-            entity.prevBodyYaw = pose.prevYaw;
-            entity.bodyYaw = pose.yaw;
-            entity.prevYaw = pose.prevYaw;
-            entity.setYaw(pose.yaw);
-            entity.setPitch(0.0f);
-            entity.prevHeadYaw = pose.prevYaw;
-            entity.headYaw = pose.yaw;
-
-            if (entity instanceof EnderDragonEntity dragon) {
-                dragon.prevWingPosition = dragon.wingPosition;
-                dragon.wingPosition += 0.05f;
-                if (dragon.wingPosition > 1.0f) {
-                    dragon.wingPosition = 0.0f;
+            switch (currentAnimationMode) {
+                case IDLE -> {
+                    long elapsed = now - pose.lastUpdated;
+                    if (elapsed > 0) {
+                        pose.limbSwing += (elapsed / 1000.0f) * (currentSmoothing * 0.3f);
+                        pose.lastUpdated = now;
+                    }
+                    limbSwing = (float) Math.sin(pose.limbSwing * 0.3f) * 0.5f;
+                    prevLimbSwing = (float) Math.sin((pose.limbSwing - 0.1f) * 0.3f) * 0.5f;
+                    limbSwingAmount = 0.1f;
                 }
-
-                dragon.prevYaw = pose.prevYaw;
-                dragon.setYaw(pose.yaw);
-                dragon.bodyYaw = pose.yaw;
-                dragon.prevBodyYaw = pose.prevYaw;
-                dragon.headYaw = pose.yaw;
-                dragon.prevHeadYaw = pose.prevYaw;
+                case WALKING -> {
+                    prevLimbSwing = pose.limbSwing;
+                    long elapsed = now - pose.lastUpdated;
+                    if (elapsed > 0) {
+                        pose.limbSwing += (elapsed / 1000.0f) * currentSmoothing;
+                        pose.lastUpdated = now;
+                    }
+                    limbSwing = pose.limbSwing;
+                    limbSwingAmount = currentSpeed;
+                }
+                case STATIC -> {
+                    limbSwing = 0f;
+                    prevLimbSwing = 0f;
+                    limbSwingAmount = 0f;
+                }
             }
 
-            net.pixeldreamstudios.journal.client.gui.AnimationOverride.set(entity, pose.limbSwing, prevLimbSwing, currentSpeed);
+            if (currentAnimationMode != JournalConfig.AnimationMode.STATIC) {
+                pose.prevYaw = pose.yaw;
+                pose.yaw = (now % 8000L) / 8000.0f * 360F;
+                pose.age = (int) (now / 50L);
+
+                entity.age = pose.age;
+                entity.prevBodyYaw = pose.prevYaw;
+                entity.bodyYaw = pose.yaw;
+                entity.prevYaw = pose.prevYaw;
+                entity.setYaw(pose.yaw);
+                entity.setPitch(0.0f);
+                entity.prevHeadYaw = pose.prevYaw;
+                entity.headYaw = pose.yaw;
+
+                if (entity instanceof EnderDragonEntity dragon) {
+                    dragon.prevWingPosition = dragon.wingPosition;
+                    dragon.wingPosition += 0.05f;
+                    if (dragon.wingPosition > 1.0f) {
+                        dragon.wingPosition = 0.0f;
+                    }
+
+                    dragon.prevYaw = pose.prevYaw;
+                    dragon.setYaw(pose.yaw);
+                    dragon.bodyYaw = pose.yaw;
+                    dragon.prevBodyYaw = pose.prevYaw;
+                    dragon.headYaw = pose.yaw;
+                    dragon.prevHeadYaw = pose.prevYaw;
+                }
+            } else {
+                entity.setYaw(0f);
+                entity.setPitch(0f);
+                entity.bodyYaw = 0f;
+                entity.prevBodyYaw = 0f;
+                entity.headYaw = 0f;
+                entity.prevHeadYaw = 0f;
+            }
+
+            net.pixeldreamstudios.journal.client.gui.AnimationOverride.set(entity, limbSwing, prevLimbSwing, limbSwingAmount);
 
             dispatcher.render(entity, 0.0, 0.0, 0.0, 0.0f, delta, matrices, context.getVertexConsumers(), 0xF000F0);
         } catch (Throwable t) {

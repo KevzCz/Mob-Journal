@@ -17,6 +17,8 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MobDescriptionLoader {
 
@@ -234,7 +236,72 @@ public class MobDescriptionLoader {
                 .replace("{getTimesKilled}", String.valueOf(stat.kills()))
                 .replace("{getTimesDiedTo}", String.valueOf(stat.deaths()));
 
+        var tags = mob.getType().getRegistryEntry().streamTags().toList();
+
+        if (tags.isEmpty()) {
+            result = result.replace("{getTags}", "None");
+        } else {
+            StringBuilder tagsBuilder = new StringBuilder();
+            for (int i = 0; i < tags.size(); i++) {
+                String tagId = tags.get(i).id().toString();
+                String tagPath = tags.get(i).id().getPath();
+                tagsBuilder.append(tagPath);
+                if (i < tags.size() - 1) {
+                    tagsBuilder.append(", ");
+                }
+            }
+            result = result.replace("{getTags}", tagsBuilder.toString());
+        }
+
+        result = processAttributePlaceholders(result, mob);
+
         return result;
+    }
+
+    private static String processAttributePlaceholders(String input, LivingEntity mob) {
+        Pattern attributePattern = Pattern.compile("\\{attribute\\.([^}]+)\\}");
+        Matcher matcher = attributePattern.matcher(input);
+
+        StringBuffer result = new StringBuffer();
+
+        while (matcher.find()) {
+            String attributeId = matcher.group(1);
+            String value = getAttributeValue(mob, attributeId);
+            matcher.appendReplacement(result, Matcher.quoteReplacement(value));
+        }
+
+        matcher.appendTail(result);
+        return result.toString();
+    }
+
+    private static String getAttributeValue(LivingEntity mob, String attributeId) {
+        try {
+            Identifier id = Identifier.tryParse(attributeId);
+            if (id == null) {
+                return "Invalid ID";
+            }
+
+            var attribute = Registries.ATTRIBUTE.get(id);
+            if (attribute == null) {
+                return "Unknown";
+            }
+
+            var instance = mob.getAttributeInstance(attribute);
+            if (instance == null) {
+                return "N/A";
+            }
+
+            double value = instance.getValue();
+
+            if (value == (long) value) {
+                return String.valueOf((long) value);
+            } else {
+                return String.format("%.2f", value);
+            }
+
+        } catch (Exception e) {
+            return "Error";
+        }
     }
 
     private static String capitalizeFirst(String text) {

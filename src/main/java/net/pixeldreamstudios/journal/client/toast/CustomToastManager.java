@@ -1,5 +1,7 @@
 package net.pixeldreamstudios.journal.client.toast;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.toast.Toast;
@@ -8,7 +10,7 @@ import net.pixeldreamstudios.journal.config.JournalConfig;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
+@Environment(EnvType.CLIENT)
 public class CustomToastManager {
     private static final List<CustomToastEntry> toasts = new ArrayList<>();
 

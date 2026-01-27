@@ -1,5 +1,7 @@
 package net.pixeldreamstudios.journal.client;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
@@ -15,7 +17,7 @@ import net.pixeldreamstudios.journal.item.JournalItems;
 import net.pixeldreamstudios.journal.network.UnlockMobPayload;
 
 import java.util.*;
-
+@Environment(EnvType.CLIENT)
 public class MobUnlockTracker {
     private static int tickCounter = 0;
     private static final Set<Identifier> alreadySent = new HashSet<>();
