@@ -7,6 +7,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
+import net.pixeldreamstudios.journal.util.SafeEntityFactory;
 import net.pixeldreamstudios.journal.compat.JournalAccess;
 import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.data.FavoriteMobsData;
@@ -97,8 +98,8 @@ public class ServerNetworkHandler {
         ServerLevel level = player.serverLevel();
         var type = BuiltInRegistries.ENTITY_TYPE.get(payload.mobId());
         if (type != null && type.canSummon()) {
-            var entity = type.create(level);
-            if (entity instanceof LivingEntity mob) {
+            LivingEntity mob = SafeEntityFactory.createLiving(type, level);
+            if (mob != null) {
                 var drops = MobLootUtil.getAllPossibleDrops(mob, level);
                 NetworkManager.sendToClient(player, new SyncMobDropsPayload(drops));
             }

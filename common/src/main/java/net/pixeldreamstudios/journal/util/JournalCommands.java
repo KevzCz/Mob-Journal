@@ -49,8 +49,7 @@ public class JournalCommands {
         for (var type : BuiltInRegistries.ENTITY_TYPE) {
             if (!type.canSummon()) continue;
 
-            var entity = type.create(player.level());
-            if (!(entity instanceof LivingEntity)) continue;
+            if (SafeEntityFactory.createLiving(type, player.level()) == null) continue;
 
             ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(type);
             if (JournalConfig.isBlacklisted(id)) continue;

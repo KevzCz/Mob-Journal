@@ -1,5 +1,8 @@
 {
-  "icon": "trinkets:gui/slots/charm",
+  "icon": "journal:gui/slots/journal",
   "order": 100,
-  "drop_rule": "keep"
+  "drop_rule": "keep",
+  "validator_predicates": [
+    "trinkets:tag"
+  ]
 }

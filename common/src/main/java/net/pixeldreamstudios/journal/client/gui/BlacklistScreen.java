@@ -16,6 +16,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.pixeldreamstudios.journal.util.SafeEntityFactory;
 import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.util.MobEntityCache;
 
@@ -168,8 +169,8 @@ public class BlacklistScreen extends Screen {
         for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
             if (!type.canSummon()) continue;
 
-            var entity = type.create(level);
-            if (!(entity instanceof LivingEntity living)) continue;
+            LivingEntity living = SafeEntityFactory.createLiving(type, level);
+            if (living == null) continue;
 
             ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(type);
             if (JournalConfig.isBlacklisted(id)) continue;

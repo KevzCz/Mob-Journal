@@ -18,6 +18,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.level.Level;
+import net.pixeldreamstudios.journal.util.SafeEntityFactory;
 import net.pixeldreamstudios.journal.Journal;
 import net.pixeldreamstudios.journal.client.JournalClientData;
 import net.pixeldreamstudios.journal.config.JournalConfig;
@@ -153,8 +154,7 @@ public class JournalScreen extends Screen {
             LivingEntity living = currentPageMobMap.computeIfAbsent(id, key -> {
                 var entityType = BuiltInRegistries.ENTITY_TYPE.get(key);
                 if (entityType == null) return null;
-                var created = entityType.create(Minecraft.getInstance().level);
-                return created instanceof LivingEntity le ? le : null;
+                return SafeEntityFactory.createLiving(entityType, Minecraft.getInstance().level);
             });
 
             if (living == null) continue;
@@ -174,10 +174,10 @@ public class JournalScreen extends Screen {
                     var level = Minecraft.getInstance().level;
                     if (level == null) return 0;
 
-                    var entA = typeA.create(level);
-                    var entB = typeB.create(level);
+                    LivingEntity la = SafeEntityFactory.createLiving(typeA, level);
+                    LivingEntity lb = SafeEntityFactory.createLiving(typeB, level);
 
-                    if (!(entA instanceof LivingEntity la) || !(entB instanceof LivingEntity lb)) return 0;
+                    if (la == null || lb == null) return 0;
                     return la.getDisplayName().getString().compareToIgnoreCase(lb.getDisplayName().getString());
                 });
             }

@@ -25,7 +25,6 @@ public class MobEntityCache {
     private static LivingEntity create(ResourceLocation id, Level level) {
         var type = BuiltInRegistries.ENTITY_TYPE.get(id);
         if (type == null || !type.canSummon()) return null;
-        var entity = type.create(level);
-        return entity instanceof LivingEntity living ? living : null;
+        return SafeEntityFactory.createLiving(type, level);
     }
 }

@@ -13,6 +13,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
+import net.pixeldreamstudios.journal.util.SafeEntityFactory;
 import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.events.JournalSounds;
 import net.pixeldreamstudios.journal.item.JournalItems;
@@ -46,8 +47,8 @@ public class MobDiscoveredToast implements Toast {
         if (entityType != null && cachedEntity == null) {
             Level level = client.level;
             if (level != null) {
-                var entity = entityType.create(level);
-                if (entity instanceof LivingEntity living) {
+                LivingEntity living = SafeEntityFactory.createLiving(entityType, level);
+                if (living != null) {
                     living.setPos(0, 0, 0);
                     living.tick();
                     cachedEntity = living;
