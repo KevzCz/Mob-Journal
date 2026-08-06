@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "package": "net.pixeldreamstudios.journal.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "minVersion": "0.8",
+  "client": [
+    "client.ClientPlayNetworkHandlerMixin",
+    "client.ClientPlayerInteractionManagerMixin",
+    "client.LivingEntityRendererMixin"
+  ],
+  "mixins": [
+    "LimbAnimatorAccessor",
+    "client.AbstractHorseEntityMixin",
+    "client.TameableEntityMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

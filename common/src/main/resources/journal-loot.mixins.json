@@ -1,0 +1,16 @@
+{
+  "required": true,
+  "package": "net.pixeldreamstudios.journal.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "minVersion": "0.8",
+  "mixins": [
+    "CombinedEntryAccessor",
+    "ItemEntryAccessor",
+    "LootPoolAccessor",
+    "LootTableAccessor",
+    "LootTableEntryAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

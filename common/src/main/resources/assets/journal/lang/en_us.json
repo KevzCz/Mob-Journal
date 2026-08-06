@@ -1,0 +1,10 @@
+{
+  "toast.journal.mob_discovered": "Discovered mob: ",
+  "key.journal.open": "Open Journal",
+  "category.journal": "Mob Journal",
+  "item.journal.journal": "Mob Journal",
+  "itemGroup.journal.tab": "Mob Journal",
+  "trinkets.slot.chest.journal": "Journal",
+  "curios.identifier.journal": "Journal",
+  "accessories.slot.journal": "Journal"
+}

@@ -1,0 +1,8 @@
+{
+  "order": 220,
+  "size": 1,
+  "icon": "journal:slot/empty_journal_slot",
+  "validators": [
+    "curios:tag"
+  ]
+}

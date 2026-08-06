@@ -1,0 +1,36 @@
+modLoader = "javafml"
+loaderVersion = "[47,)"
+issueTrackerURL = "https://github.com/KevzCz/Mob-Journal/issues"
+license = "MIT"
+
+[[mods]]
+modId = "journal"
+version = "${version}"
+displayName = "Mob Journal"
+authors = "KevzCz, PixelDreamStudios"
+displayURL = "https://www.curseforge.com/minecraft/mc-mods/mob-journal"
+logoFile = "assets/journal/icon.png"
+description = '''
+A Journal for all the mobs you've seen / discovered!
+'''
+
+[[dependencies.journal]]
+modId = "forge"
+mandatory = true
+versionRange = "[47,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.journal]]
+modId = "minecraft"
+mandatory = true
+versionRange = "[1.20.1,1.21)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.journal]]
+modId = "architectury"
+mandatory = true
+versionRange = "[9.2.14,)"
+ordering = "AFTER"
+side = "BOTH"
