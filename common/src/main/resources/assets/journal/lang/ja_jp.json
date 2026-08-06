@@ -1,0 +1,10 @@
+{
+  "toast.journal.mob_discovered": "発見したモブ: ",
+  "key.journal.open": "モブ図鑑を開く",
+  "category.journal": "Mob Journal",
+  "item.journal.journal": "モブ図鑑",
+  "itemGroup.journal.tab": "Mob Journal",
+  "trinkets.slot.chest.journal": "モブ図鑑",
+  "curios.identifier.journal": "モブ図鑑",
+  "accessories.slot.journal": "モブ図鑑"
+}

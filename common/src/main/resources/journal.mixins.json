@@ -1,0 +1,24 @@
+{
+  "required": true,
+  "package": "net.pixeldreamstudios.journal.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "minVersion": "0.8",
+  "client": [
+    "client.AbstractHorseEntityMixin",
+    "client.ClientPlayNetworkHandlerMixin",
+    "client.ClientPlayerInteractionManagerMixin",
+    "client.LivingEntityRendererMixin",
+    "client.TameableEntityMixin"
+  ],
+  "mixins": [
+    "CombinedEntryAccessor",
+    "ItemEntryAccessor",
+    "LimbAnimatorAccessor",
+    "LootPoolAccessor",
+    "LootTableAccessor",
+    "LootTableEntryAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

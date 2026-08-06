@@ -1,0 +1,5 @@
+{
+  "icon": "trinkets:gui/slots/charm",
+  "order": 100,
+  "drop_rule": "keep"
+}
