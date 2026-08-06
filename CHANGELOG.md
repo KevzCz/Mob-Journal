@@ -1,3 +1,5 @@
-Architectury Port
+Fix a few issues with commands
 
-Added trinkets & curios compat
+Fix trinket/curios compat checks
+
+Journal slot now uses a new texture
