@@ -16,6 +16,7 @@ import net.pixeldreamstudios.journal.config.JournalConfig;
 import net.pixeldreamstudios.journal.network.ClientReadyPayload;
 import net.pixeldreamstudios.journal.network.NetworkManager;
 import net.pixeldreamstudios.journal.network.OpenJournalPayload;
+import net.pixeldreamstudios.journal.util.TagPreviewCache;
 import org.lwjgl.glfw.GLFW;
 
 @Environment(EnvType.CLIENT)
@@ -41,8 +42,10 @@ public class JournalClient {
         ClientGuiEvent.RENDER_HUD.register((context, tickDelta) ->
                 CustomToastManager.render(context));
 
-        ClientPlayerEvent.CLIENT_PLAYER_JOIN.register(player ->
-                NetworkManager.sendToServer(ClientReadyPayload.INSTANCE));
+        ClientPlayerEvent.CLIENT_PLAYER_JOIN.register(player -> {
+            TagPreviewCache.clear();
+            NetworkManager.sendToServer(ClientReadyPayload.INSTANCE);
+        });
     }
 
     private static void handleKeybind(Minecraft client) {

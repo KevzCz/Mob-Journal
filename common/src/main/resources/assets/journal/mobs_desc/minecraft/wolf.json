@@ -1,0 +1,13 @@
+﻿{
+    "description":  [
+                        "## {mobName}",
+                        "[**Health:**](hover:texture:minecraft:textures/mob_effect/regeneration.png width=16 height=16 srcwidth=18 srcheight=18 \"Maximum health points.\") {getHealth}",
+                        "[**Armor:**](hover:texture:minecraft:textures/mob_effect/resistance.png width=16 height=16 srcwidth=18 srcheight=18 \"Incoming damage reduction.\") {getArmor}",
+                        "[**Attack:**](hover:texture:minecraft:textures/mob_effect/strength.png width=16 height=16 srcwidth=18 srcheight=18 \"Damage dealt per hit.\") {attribute.minecraft:generic.attack_damage}",
+                        "[**Speed:**](hover:texture:minecraft:textures/mob_effect/speed.png width=16 height=16 srcwidth=18 srcheight=18 \"Base movement speed.\") {attribute.minecraft:generic.movement_speed}",
+                        "Tame with [bones](hover:item:minecraft:bone), breed with [meat](hover:tag_grid:minecraft:wolf_food).",
+                        "**Kills:** {getTimesKilled}   **Deaths:** {getTimesDiedTo}",
+                        "## Drops",
+                        "{getLootDrops}"
+                    ]
+}

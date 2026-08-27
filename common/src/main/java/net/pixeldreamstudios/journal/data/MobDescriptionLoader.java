@@ -26,6 +26,8 @@ import java.util.regex.Pattern;
 
 public class MobDescriptionLoader {
 
+    private static final String VALUE_UNAVAILABLE = "N/A";
+
     public static List<List<ParsedLine>> getDescription(ResourceLocation mobId, LivingEntity mob) {
         ResourceLocation jsonPath = ResourceLocation.fromNamespaceAndPath(Journal.MOD_ID,
                 "mobs_desc/" + mobId.getNamespace() + "/" + mobId.getPath() + ".json");
@@ -85,9 +87,7 @@ public class MobDescriptionLoader {
             List<List<ParsedLine>> rows = new ArrayList<>();
 
             for (JsonElement el : desc) {
-                String raw = el.getAsString();
-                List<ParsedLine> parsed = MarkdownParser.parse(applyVariables(raw, mobId, mob));
-                rows.add(parsed);
+                addRow(rows, el.getAsString(), mobId, mob);
             }
 
             if (MarkdownParser.containsPlaceholder(rows, "{getLootDrops}")) {
@@ -127,9 +127,7 @@ public class MobDescriptionLoader {
             List<List<ParsedLine>> lines = new ArrayList<>();
 
             for (JsonElement el : desc) {
-                String raw = el.getAsString();
-                List<ParsedLine> parsed = MarkdownParser.parse(applyVariables(raw, mobId, mob));
-                lines.add(parsed);
+                addRow(lines, el.getAsString(), mobId, mob);
             }
 
             if (MarkdownParser.containsPlaceholder(lines, "{getLootDrops}")) {
@@ -197,9 +195,7 @@ public class MobDescriptionLoader {
             List<List<ParsedLine>> lines = new ArrayList<>();
 
             for (JsonElement el : desc) {
-                String raw = el.getAsString();
-                List<ParsedLine> parsed = MarkdownParser.parse(applyVariables(raw, mobId, mob));
-                lines.add(parsed);
+                addRow(lines, el.getAsString(), mobId, mob);
             }
 
             if (MarkdownParser.containsPlaceholder(lines, "{getLootDrops}")) {
@@ -217,8 +213,8 @@ public class MobDescriptionLoader {
     private static String applyVariables(String input, ResourceLocation mobId, LivingEntity mob) {
         String result = input
                 .replace("{mobName}", mob.getDisplayName().getString())
-                .replace("{getHealth}", String.valueOf(mob.getMaxHealth()))
-                .replace("{getArmor}", String.valueOf(mob.getArmorValue()))
+                .replace("{getHealth}", formatNumber(mob.getMaxHealth()))
+                .replace("{getArmor}", formatNumber(mob.getArmorValue()))
                 .replace("{entityType}", BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString())
                 .replace("{namespace}", mobId.getNamespace())
                 .replace("{path}", mobId.getPath());
@@ -290,17 +286,26 @@ public class MobDescriptionLoader {
                 return "N/A";
             }
 
-            double value = instance.getValue();
-
-            if (value == (long) value) {
-                return String.valueOf((long) value);
-            } else {
-                return String.format("%.2f", value);
-            }
+            return formatNumber(instance.getValue());
 
         } catch (Exception e) {
             return "Error";
         }
+    }
+
+    private static void addRow(List<List<ParsedLine>> rows, String raw, ResourceLocation mobId, LivingEntity mob) {
+        String resolved = applyVariables(raw, mobId, mob);
+        if (resolved.contains(VALUE_UNAVAILABLE)) {
+            return;
+        }
+        rows.add(MarkdownParser.parse(resolved));
+    }
+
+    private static String formatNumber(double value) {
+        if (value == (long) value) {
+            return String.valueOf((long) value);
+        }
+        return String.format("%.2f", value);
     }
 
     private static String capitalizeFirst(String text) {
