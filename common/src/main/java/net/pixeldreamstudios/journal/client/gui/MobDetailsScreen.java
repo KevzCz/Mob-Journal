@@ -1,6 +1,7 @@
 package net.pixeldreamstudios.journal.client.gui;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.ChatFormatting;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
@@ -28,11 +29,14 @@ import net.pixeldreamstudios.journal.network.ToggleFavoritePayload;
 import net.pixeldreamstudios.journal.util.MarkdownParser;
 import net.pixeldreamstudios.journal.util.MarkdownParser.ParsedLine;
 import net.pixeldreamstudios.journal.util.MobEntityCache;
+import net.pixeldreamstudios.journal.util.TagPreviewCache;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Environment(EnvType.CLIENT)
 public class MobDetailsScreen extends Screen {
@@ -41,6 +45,21 @@ public class MobDetailsScreen extends Screen {
     private static final ResourceLocation RIGHT_PAGE =
             new ResourceLocation(Journal.MOD_ID, "textures/book_flipped.png");
     private static final int TEXTURE_SIZE = 256;
+    private static final int ICON_SIZE = 16;
+    private static final int TOOLTIP_WRAP_WIDTH = 180;
+    private static final int GRID_COLUMNS = 4;
+    private static final int GRID_ROWS = 4;
+    private static final int GRID_PAGE_SIZE = GRID_COLUMNS * GRID_ROWS;
+    private static final int CYCLE_TICKS = 20;
+    private static final int GRID_PAGE_TICKS = 40;
+    private static final int PREVIEW_PADDING = 4;
+    private static final int PREVIEW_CURSOR_OFFSET = 12;
+    private static final int PREVIEW_BACKGROUND = 0xF0100010;
+    private static final int PREVIEW_BORDER = 0x505000FF;
+    private static final int PREVIEW_LABEL_COLOR = 0xFFAAAAAA;
+    private static final int PART_GAP = 2;
+    private static final Pattern WORD_CHUNK = Pattern.compile("\\S+\\s*|\\s+");
+    private static final float DESC_SCALE = 0.85f;
 
     private final int returnPage;
     private boolean isFavorite;
@@ -213,9 +232,8 @@ public class MobDetailsScreen extends Screen {
     private void paginateDescription(List<List<ParsedLine>> lines) {
         paginatedLines.clear();
 
-        float baseScale = 0.85f;
-        int maxHeight = (int) (descSlotH / baseScale) - 10;
-        int wrapWidth = (int) (descSlotW / baseScale) - 10;
+        int maxHeight = (int) (descSlotH / DESC_SCALE) - 10;
+        int wrapWidth = descriptionWrapWidth();
 
         Font renderer = Minecraft.getInstance().font;
         List<List<ParsedLine>> currentPage = new ArrayList<>();
@@ -238,41 +256,9 @@ public class MobDetailsScreen extends Screen {
             int currentLineWidth = 0;
             int currentLineHeight = 0;
 
-            for (ParsedLine part : inputRow) {
-                if (part.isText()) {
-                    String text = part.text.getString();
-                    int textWidth = renderer.width(text);
-
-                    if (textWidth > wrapWidth) {
-                        List<ParsedLine> wrappedParts = wrapTextPart(part, wrapWidth, renderer);
-                        for (ParsedLine wrappedPart : wrappedParts) {
-                            int width = renderer.width(wrappedPart.text);
-                            int height = renderer.lineHeight;
-
-                            if (currentLineWidth + width > wrapWidth && !currentLine.isEmpty()) {
-                                if (currentHeight + currentLineHeight > maxHeight) {
-                                    paginatedLines.add(currentPage);
-                                    currentPage = new ArrayList<>();
-                                    currentHeight = 0;
-                                }
-                                currentPage.add(currentLine);
-                                currentHeight += currentLineHeight + 4;
-                                currentLine = new ArrayList<>();
-                                currentLineWidth = 0;
-                                currentLineHeight = 0;
-                            }
-
-                            currentLine.add(wrappedPart);
-                            currentLineWidth += width + 2;
-                            currentLineHeight = Math.max(currentLineHeight, height);
-                        }
-                        continue;
-                    }
-                }
-
-                float scale = part.scale <= 0 ? 1.0f : part.scale;
-                int width = part.isText() ? renderer.width(part.text) : (int) (16 * scale);
-                int height = part.isText() ? renderer.lineHeight : (int) (16 * scale);
+            for (ParsedLine part : splitIntoWords(inputRow)) {
+                int width = part.isText() ? renderer.width(part.text) : part.drawnWidth(ICON_SIZE);
+                int height = part.isText() ? renderer.lineHeight : part.drawnHeight(ICON_SIZE);
 
                 if (currentLineWidth + width > wrapWidth && !currentLine.isEmpty()) {
                     if (currentHeight + currentLineHeight > maxHeight) {
@@ -288,7 +274,7 @@ public class MobDetailsScreen extends Screen {
                 }
 
                 currentLine.add(part);
-                currentLineWidth += width + 2;
+                currentLineWidth += width + (part.isText() ? 0 : PART_GAP);
                 currentLineHeight = Math.max(currentLineHeight, height);
             }
 
@@ -330,29 +316,70 @@ public class MobDetailsScreen extends Screen {
         }
     }
 
-    private List<ParsedLine> wrapTextPart(ParsedLine original, int maxWidth, Font renderer) {
-        List<ParsedLine> result = new ArrayList<>();
+    private int descriptionWrapWidth() {
+        return (int) (descSlotW / DESC_SCALE) - 10;
+    }
 
-        List<FormattedCharSequence> wrappedLines = renderer.split(original.text, maxWidth);
-
-        for (FormattedCharSequence orderedText : wrappedLines) {
-            StringBuilder sb = new StringBuilder();
-            orderedText.accept((index, style, codePoint) -> {
-                sb.appendCodePoint(codePoint);
-                return true;
-            });
-
-            Component wrappedText = Component.literal(sb.toString()).setStyle(original.text.getStyle());
-            ParsedLine wrapped = new ParsedLine(wrappedText);
-            wrapped.scale = original.scale;
-            if (original.hasTooltip()) {
-                wrapped.tooltip = original.tooltip;
-            }
-            result.add(wrapped);
+    private int alignmentOffset(List<ParsedLine> row, Font renderer) {
+        if (row.isEmpty()) {
+            return 0;
         }
 
-        if (result.isEmpty()) {
-            result.add(original);
+        MarkdownParser.Alignment alignment = row.get(0).alignment;
+        if (alignment == MarkdownParser.Alignment.LEFT) {
+            return 0;
+        }
+
+        int rowWidth = 0;
+        for (ParsedLine part : row) {
+            if (part.isText()) {
+                rowWidth += renderer.width(part.text);
+            } else {
+                rowWidth += part.drawnWidth(ICON_SIZE) + PART_GAP;
+            }
+        }
+
+        int free = descriptionWrapWidth() - rowWidth;
+        if (free <= 0) {
+            return 0;
+        }
+
+        return alignment == MarkdownParser.Alignment.CENTER ? free / 2 : free;
+    }
+
+    private List<ParsedLine> splitIntoWords(List<ParsedLine> row) {
+        List<ParsedLine> result = new ArrayList<>();
+        MarkdownParser.Alignment rowAlignment = row.isEmpty()
+                ? MarkdownParser.Alignment.LEFT
+                : row.get(0).alignment;
+
+        for (ParsedLine part : row) {
+            part.alignment = rowAlignment;
+            if (!part.isText() || part.hasHoverPreview()) {
+                result.add(part);
+                continue;
+            }
+
+            String raw = part.text.getString();
+            if (raw.isEmpty()) {
+                result.add(part);
+                continue;
+            }
+
+            Matcher chunk = WORD_CHUNK.matcher(raw);
+            boolean added = false;
+            while (chunk.find()) {
+                ParsedLine word = new ParsedLine(
+                        Component.literal(chunk.group()).setStyle(part.text.getStyle()));
+                word.scale = part.scale;
+                part.copyHoverInto(word);
+                result.add(word);
+                added = true;
+            }
+
+            if (!added) {
+                result.add(part);
+            }
         }
 
         return result;
@@ -475,7 +502,7 @@ public class MobDetailsScreen extends Screen {
             int yOffset = 0;
 
             for (List<ParsedLine> row : rows) {
-                int xOffset = 0;
+                int xOffset = alignmentOffset(row, renderer);
                 int lineHeight = 0;
 
                 for (ParsedLine part : row) {
@@ -512,14 +539,17 @@ public class MobDetailsScreen extends Screen {
                         context.drawString(renderer, part.text, 0, 0, 0x535c55, false);
                         matrices.popPose();
 
-                        if (part.hasTooltip() &&
-                                mouseX >= drawX && mouseX <= drawX + width &&
+                        if (mouseX >= drawX && mouseX <= drawX + width &&
                                 mouseY >= drawY && mouseY <= drawY + height) {
-                            List<FormattedCharSequence> tooltip = renderer.split(part.tooltip, 180);
-                            context.renderTooltip(renderer, tooltip, mouseX, mouseY);
+                            if (part.hasHoverPreview()) {
+                                renderHoverPreview(context, renderer, part, mouseX, mouseY);
+                            } else if (part.hasTooltip()) {
+                                List<FormattedCharSequence> tooltip = renderer.split(part.tooltip, TOOLTIP_WRAP_WIDTH);
+                                context.renderTooltip(renderer, tooltip, mouseX, mouseY);
+                            }
                         }
 
-                        xOffset += width + 2;
+                        xOffset += width;
                         lineHeight = Math.max(lineHeight, height);
 
                     } else if (part.isItem()) {
@@ -538,23 +568,25 @@ public class MobDetailsScreen extends Screen {
                             context.renderComponentTooltip(renderer, tooltip, mouseX, mouseY);
                         }
 
-                        xOffset += iconSize + 2;
+                        xOffset += iconSize + PART_GAP;
                         lineHeight = Math.max(lineHeight, iconSize);
 
                     } else if (part.isTexture()) {
-                        int texSize = (int) (16 * scale);
+                        int texWidth = part.drawnWidth(ICON_SIZE);
+                        int texHeight = part.drawnHeight(ICON_SIZE);
 
-                        context.blit(part.texture, drawX, drawY, 0, 0, texSize, texSize, 16, 16);
+                        context.blit(part.texture, drawX, drawY, 0, 0, texWidth, texHeight,
+                                part.sourceWidth(texWidth), part.sourceHeight(texHeight));
 
-                        if (mouseX >= drawX && mouseX <= drawX + texSize &&
-                                mouseY >= drawY && mouseY <= drawY + texSize &&
+                        if (mouseX >= drawX && mouseX <= drawX + texWidth &&
+                                mouseY >= drawY && mouseY <= drawY + texHeight &&
                                 part.hasTooltip()) {
-                            List<FormattedCharSequence> tooltip = renderer.split(part.tooltip, 180);
+                            List<FormattedCharSequence> tooltip = renderer.split(part.tooltip, TOOLTIP_WRAP_WIDTH);
                             context.renderTooltip(renderer, tooltip, mouseX, mouseY);
                         }
 
-                        xOffset += texSize + 2;
-                        lineHeight = Math.max(lineHeight, texSize);
+                        xOffset += texWidth + PART_GAP;
+                        lineHeight = Math.max(lineHeight, texHeight);
                     }
                 }
                 yOffset += lineHeight + 4;
@@ -565,6 +597,140 @@ public class MobDetailsScreen extends Screen {
         backDescButton.render(context, mouseX, mouseY);
         nextButton.render(context, mouseX, mouseY);
         context.flush();
+    }
+
+    private void renderHoverPreview(GuiGraphics context, Font renderer, ParsedLine part, int mouseX, int mouseY) {
+        if (part.hoverTexture != null) {
+            int drawW = part.drawnWidth(ICON_SIZE);
+            int drawH = part.drawnHeight(ICON_SIZE);
+            renderPreviewPanel(context, renderer, List.of(), part.hoverTexture,
+                    drawW, drawH, part.sourceWidth(drawW), part.sourceHeight(drawH),
+                    part.tooltip, mouseX, mouseY);
+            return;
+        }
+
+        List<ItemStack> items = part.hoverMode == MarkdownParser.HoverMode.SINGLE
+                ? part.hoverItems
+                : TagPreviewCache.get(part.hoverTag);
+
+        if (items.isEmpty()) {
+            if (part.hasTooltip()) {
+                context.renderTooltip(renderer, renderer.split(part.tooltip, TOOLTIP_WRAP_WIDTH), mouseX, mouseY);
+            }
+            return;
+        }
+
+        long time = Minecraft.getInstance().level == null ? 0L : Minecraft.getInstance().level.getGameTime();
+
+        if (part.hoverMode == MarkdownParser.HoverMode.GRID && items.size() > 1) {
+            int pageCount = (items.size() + GRID_PAGE_SIZE - 1) / GRID_PAGE_SIZE;
+            int page = (int) ((time / GRID_PAGE_TICKS) % pageCount);
+            int from = page * GRID_PAGE_SIZE;
+            int to = Math.min(from + GRID_PAGE_SIZE, items.size());
+
+            Component label = pageCount > 1
+                    ? Component.literal((from + 1) + "-" + to + "/" + items.size())
+                    : part.tooltip;
+
+            renderPreviewPanel(context, renderer, items.subList(from, to), null, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE, label, mouseX, mouseY);
+            return;
+        }
+
+        if (part.hoverMode == MarkdownParser.HoverMode.CYCLE && items.size() > 1) {
+            int index = (int) ((time / CYCLE_TICKS) % items.size());
+            ItemStack current = items.get(index);
+
+            Component label = current.getHoverName()
+                    .copy()
+                    .append(Component.literal(" (" + (index + 1) + "/" + items.size() + ")")
+                            .withStyle(ChatFormatting.DARK_GRAY));
+
+            renderPreviewPanel(context, renderer, List.of(current), null, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE, label, mouseX, mouseY);
+            return;
+        }
+
+        ItemStack only = items.get(0);
+        Component label = part.hasTooltip() ? part.tooltip : only.getHoverName();
+        renderPreviewPanel(context, renderer, List.of(only), null, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE, label, mouseX, mouseY);
+    }
+
+    private void renderPreviewPanel(GuiGraphics context, Font renderer, List<ItemStack> items,
+                                    ResourceLocation texture, int textureWidth, int textureHeight,
+                                    int sourceWidth, int sourceHeight,
+                                    Component label, int mouseX, int mouseY) {
+        int columns = Math.min(Math.max(items.size(), 1), GRID_COLUMNS);
+        int rows = items.isEmpty() ? 1 : (items.size() + columns - 1) / columns;
+
+        int iconsWidth = texture != null
+                ? textureWidth
+                : columns * ICON_SIZE + (columns - 1) * PREVIEW_PADDING;
+        int iconsHeight = texture != null
+                ? textureHeight
+                : rows * ICON_SIZE + (rows - 1) * PREVIEW_PADDING;
+
+        boolean hasLabel = label != null && !label.getString().isBlank();
+        int labelWidth = hasLabel ? renderer.width(label) : 0;
+        boolean inlineLabel = hasLabel && (texture != null || items.size() <= 1);
+
+        int contentWidth;
+        int contentHeight;
+        if (inlineLabel) {
+            contentWidth = iconsWidth + PREVIEW_PADDING + labelWidth;
+            contentHeight = Math.max(iconsHeight, renderer.lineHeight);
+        } else {
+            contentWidth = Math.max(iconsWidth, labelWidth);
+            contentHeight = iconsHeight + (hasLabel ? renderer.lineHeight + PREVIEW_PADDING : 0);
+        }
+
+        int panelWidth = contentWidth + PREVIEW_PADDING * 2;
+        int panelHeight = contentHeight + PREVIEW_PADDING * 2;
+
+        int panelX = mouseX + PREVIEW_CURSOR_OFFSET;
+        int panelY = mouseY - PREVIEW_CURSOR_OFFSET;
+
+        if (panelX + panelWidth > this.width) {
+            panelX = this.width - panelWidth - PREVIEW_PADDING;
+        }
+        if (panelY + panelHeight > this.height) {
+            panelY = this.height - panelHeight - PREVIEW_PADDING;
+        }
+        if (panelY < 0) {
+            panelY = 0;
+        }
+
+        PoseStack matrices = context.pose();
+        matrices.pushPose();
+        matrices.translate(0, 0, 400);
+
+        context.fill(panelX, panelY, panelX + panelWidth, panelY + panelHeight, PREVIEW_BACKGROUND);
+        context.renderOutline(panelX, panelY, panelWidth, panelHeight, PREVIEW_BORDER);
+
+        int originX = panelX + PREVIEW_PADDING;
+        int originY = panelY + PREVIEW_PADDING;
+
+        if (texture != null) {
+            context.blit(texture, originX, originY, 0, 0, textureWidth, textureHeight, sourceWidth, sourceHeight);
+        }
+
+        for (int i = 0; i < items.size(); i++) {
+            int col = i % columns;
+            int row = i / columns;
+            int iconX = originX + col * (ICON_SIZE + PREVIEW_PADDING);
+            int iconY = originY + row * (ICON_SIZE + PREVIEW_PADDING);
+
+            context.renderItem(items.get(i), iconX, iconY);
+            context.renderItemDecorations(renderer, items.get(i), iconX, iconY);
+        }
+
+        if (hasLabel) {
+            int labelX = inlineLabel ? originX + iconsWidth + PREVIEW_PADDING : originX;
+            int labelY = inlineLabel
+                    ? originY + Math.max(0, (iconsHeight - renderer.lineHeight) / 2)
+                    : originY + iconsHeight + PREVIEW_PADDING;
+            context.drawString(renderer, label, labelX, labelY, PREVIEW_LABEL_COLOR, false);
+        }
+
+        matrices.popPose();
     }
 
     private List<Component> getEffectiveTooltip(ParsedLine part, ItemStack item) {
